@@ -6,6 +6,7 @@ import { ContactBanner } from '../components/Layout'
 import RollingShowcase from '../components/RollingShowcase'
 import { CompanyCards } from './Companies'
 import type { LandingData } from '../lib/types'
+import heroImage from '../assets/hero-consultation.webp'
 
 export default function Home({ landing }: { landing?: LandingData | null }) {
   const { articles, settings, rollingCases = [] } = useContent(),
@@ -31,22 +32,11 @@ export default function Home({ landing }: { landing?: LandingData | null }) {
           </a>
         </div>
         <div className="hero-visual">
-          <div className="visual-lines" />
-          <span className="visual-label">
-            YOUR NEXT CHAPTER,
-            <br />
-            TOGETHER WITH NARAN.
-          </span>
-          <img src="/images/lawyer-seo.webp" alt="법무법인 나란 서지원 대표변호사" fetchPriority="high" />
-          <div className="visual-caption">
-            <span>법무법인 나란</span>
-            <strong>
-              서지원 <small>대표변호사</small>
-            </strong>
-          </div>
-          <span className="visual-seal">
-            나란<span>NARAN LAW FIRM</span>
-          </span>
+          <img
+            src={heroImage}
+            alt="의뢰인의 이야기를 듣고 서류를 함께 살펴보는 법률 상담 모습"
+            fetchPriority="high"
+          />
         </div>
       </section>
       <div className="container quick-links">

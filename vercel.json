@@ -3,8 +3,9 @@
   "outputDirectory": "dist",
   "functions": { "api/render.js": { "includeFiles": "{dist,dist-server}/**" } },
   "rewrites": [
-    { "source": "/sitemap.xml", "destination": "/api/sitemap" },
-    { "source": "/api/:path*", "destination": "/api/:path*" },
+    { "source": "/sitemap.xml", "destination": "/api/handler?__route=sitemap" },
+    { "source": "/api/render", "destination": "/api/render" },
+    { "source": "/api/:path*", "destination": "/api/handler?__route=:path*" },
     {
       "source": "/((?!api/|assets/|images/|naran.svg|favicon.svg|robots.txt).*)",
       "destination": "/api/render?path=/$1"

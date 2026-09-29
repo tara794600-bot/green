@@ -402,83 +402,11 @@ form > label {
   background: linear-gradient(135deg, #e3e8dc, #dde2d6 68%, #d2d9ca);
 }
 .hero-visual > img {
-  position: absolute;
-  bottom: 0;
-  right: -9px;
-  height: 99%;
-  width: 93%;
-  object-fit: contain;
-  object-position: bottom;
-}
-.visual-label {
-  position: absolute;
-  top: 33px;
-  right: 30px;
-  font-size: 9px;
-  letter-spacing: 1.3px;
-  color: #667760;
-  text-align: right;
-  line-height: 1.8;
-}
-.visual-caption {
-  position: absolute;
-  left: 30px;
-  bottom: 34px;
-  z-index: 1;
-}
-.visual-caption > span {
   display: block;
-  font-size: 10px;
-  margin-bottom: 6px;
-}
-.visual-caption strong {
-  font-weight: 500;
-  font-size: 20px;
-}
-.visual-caption small {
-  font-size: 10px;
-  margin-left: 7px;
-  font-weight: 400;
-}
-.visual-lines {
-  position: absolute;
-  width: 420px;
-  height: 550px;
-  border: 1px solid #c6d0bc;
-  border-radius: 50% 50% 0 0;
-  bottom: -190px;
-  left: -150px;
-  transform: rotate(-25deg);
-}
-.visual-lines:after {
-  content: '';
-  position: absolute;
-  inset: 30px;
-  border: 1px solid #c6d0bc;
-  border-radius: inherit;
-}
-.visual-seal {
-  position: absolute;
-  right: 25px;
-  bottom: 30px;
-  border: 1px solid #b6c3aa;
-  border-radius: 50%;
-  width: 80px;
-  height: 80px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--serif);
-  font-size: 22px;
-  transform: rotate(-15deg);
-  color: #fff;
-  background: #264339cc;
-}
-.visual-seal span {
-  font-family: Arial, sans-serif;
-  font-size: 5px;
-  letter-spacing: 1px;
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+  object-position: center;
 }
 .quick-links {
   display: grid;
@@ -1475,11 +1403,6 @@ form > label {
   .hero-visual {
     height: 425px;
   }
-  .hero-visual > img {
-    width: 108%;
-    max-width: 108%;
-    right: -22px;
-  }
   .section {
     padding-block: 76px;
   }
@@ -1581,39 +1504,6 @@ form > label {
   .hero-visual {
     height: 365px;
     border-top-left-radius: 80px;
-  }
-  .hero-visual > img {
-    width: 125%;
-    max-width: 125%;
-    right: -35px;
-    height: 100%;
-  }
-  .visual-label {
-    right: 17px;
-    top: 22px;
-    font-size: 7px;
-  }
-  .visual-caption {
-    left: 17px;
-    bottom: 21px;
-  }
-  .visual-caption strong {
-    font-size: 17px;
-  }
-  .visual-caption small {
-    display: block;
-    margin: 0;
-    font-size: 9px;
-  }
-  .visual-seal {
-    width: 56px;
-    height: 56px;
-    font-size: 18px;
-    right: 17px;
-    bottom: 21px;
-  }
-  .visual-seal span {
-    font-size: 4px;
   }
   .quick-links {
     gap: 15px;
@@ -1824,39 +1714,6 @@ form > label {
   .hero-visual {
     height: 365px;
     border-top-left-radius: 76px;
-  }
-  .hero-visual > img {
-    height: 105%;
-    width: 92%;
-    max-width: 100%;
-    right: 0;
-  }
-  .visual-label {
-    right: 24px;
-    top: 25px;
-    font-size: 8px;
-  }
-  .visual-caption {
-    left: 23px;
-    bottom: 28px;
-  }
-  .visual-caption strong {
-    font-size: 20px;
-  }
-  .visual-caption small {
-    display: inline;
-    font-size: 10px;
-    margin-left: 7px;
-  }
-  .visual-seal {
-    width: 68px;
-    height: 68px;
-    right: 22px;
-    bottom: 26px;
-    font-size: 20px;
-  }
-  .visual-seal span {
-    font-size: 4px;
   }
   .quick-links {
     grid-template-columns: 1fr;
