@@ -17,7 +17,7 @@ export default function Home({ landing }: { landing?: LandingData | null }) {
   return (
     <>
       <section className="home-hero container">
-        <div className="hero-copy">
+        <div className="hero-copy" data-reveal-group>
           <p className="eyebrow">NARAN · FINANCIAL FRAUD COUNSEL</p>
           {landing && <p className="landing-keyword">{landing.keyword}</p>}
           <h1>{settings.heroTitle}</h1>
@@ -31,7 +31,7 @@ export default function Home({ landing }: { landing?: LandingData | null }) {
             <ArrowUpRight size={14} />
           </a>
         </div>
-        <div className="hero-visual">
+        <div className="hero-visual" data-reveal="zoom" data-reveal-delay="160">
           <img
             src={heroImage}
             alt="의뢰인의 이야기를 듣고 서류를 함께 살펴보는 법률 상담 모습"
@@ -39,7 +39,7 @@ export default function Home({ landing }: { landing?: LandingData | null }) {
           />
         </div>
       </section>
-      <div className="container quick-links">
+      <div className="container quick-links" data-reveal-group>
         <Link to="/practice">
           <span>01</span>피해 유형부터 확인하기
           <ArrowUpRight size={17} />
@@ -55,8 +55,10 @@ export default function Home({ landing }: { landing?: LandingData | null }) {
       </div>
       {landing && landing.companies.length > 0 && (
         <section className="section container landing-results">
-          <p className="eyebrow">RELATED INFORMATION</p>
-          <div className="section-heading">
+          <p className="eyebrow" data-reveal>
+            RELATED INFORMATION
+          </p>
+          <div className="section-heading" data-reveal>
             <h2>“{landing.keyword}” 관련 정보</h2>
             <ArrowLink to="/companies">업체 정보 전체 보기</ArrowLink>
           </div>
@@ -65,12 +67,14 @@ export default function Home({ landing }: { landing?: LandingData | null }) {
       )}
       <RollingShowcase items={rollingCases} />
       <section className="section container">
-        <p className="eyebrow">01 · AREAS OF PRACTICE</p>
-        <div className="section-heading">
+        <p className="eyebrow" data-reveal>
+          01 · AREAS OF PRACTICE
+        </p>
+        <div className="section-heading" data-reveal>
           <h2>어떤 상황을 겪고 계신가요?</h2>
           <span className="muted">지금의 상황에서, 대응의 출발점을 찾습니다.</span>
         </div>
-        <div className="card-grid practice-grid">
+        <div className="card-grid practice-grid" data-reveal-group>
           {practices.map((article, index) => (
             <ArticleCard key={article.id} article={article} index={index} />
           ))}
@@ -79,7 +83,7 @@ export default function Home({ landing }: { landing?: LandingData | null }) {
       </section>
       <section className="section sage">
         <div className="container promise-grid">
-          <div className="promise-visual">
+          <div className="promise-visual" data-reveal="left">
             <img src="/images/consultation.webp" alt="상담 자료를 함께 살펴보는 모습" loading="lazy" />
             <div className="promise-quote">
               듣는 것에서 시작해,
@@ -88,7 +92,7 @@ export default function Home({ landing }: { landing?: LandingData | null }) {
             </div>
             <span>NARAN LAW FIRM</span>
           </div>
-          <div className="promise-copy">
+          <div className="promise-copy" data-reveal="right" data-reveal-delay="120">
             <p className="eyebrow">02 · THE NARAN PROMISE</p>
             <h2>
               사건 너머의 일상까지
@@ -115,8 +119,10 @@ export default function Home({ landing }: { landing?: LandingData | null }) {
         </div>
       </section>
       <section className="section container">
-        <p className="eyebrow">03 · CASE LIBRARY</p>
-        <div className="section-heading">
+        <p className="eyebrow" data-reveal>
+          03 · CASE LIBRARY
+        </p>
+        <div className="section-heading" data-reveal>
           <h2>
             상황은 달라도,
             <br />
@@ -124,7 +130,7 @@ export default function Home({ landing }: { landing?: LandingData | null }) {
           </h2>
           <p className="muted">가상 예시 · 실제 수임 실적이나 결과가 아닙니다.</p>
         </div>
-        <div className="card-grid">
+        <div className="card-grid" data-reveal-group>
           {[cases[0], cases[5], cases[10]].filter(Boolean).map((article) => (
             <ArticleCard key={article.id} article={article} />
           ))}
@@ -133,9 +139,11 @@ export default function Home({ landing }: { landing?: LandingData | null }) {
       </section>
       <section className="section sage">
         <div className="container">
-          <p className="eyebrow">04 · NEWS & INSIGHTS</p>
-          <h2>상담을 준비하는 당신에게.</h2>
-          <div className="card-grid">
+          <p className="eyebrow" data-reveal>
+            04 · NEWS & INSIGHTS
+          </p>
+          <h2 data-reveal>상담을 준비하는 당신에게.</h2>
+          <div className="card-grid" data-reveal-group>
             {guides.slice(0, 3).map((article) => (
               <ArticleCard key={article.id} article={article} />
             ))}
@@ -144,9 +152,11 @@ export default function Home({ landing }: { landing?: LandingData | null }) {
         </div>
       </section>
       <section className="section container faq-section">
-        <p className="eyebrow">BEFORE WE MEET</p>
-        <h2>상담 전, 궁금한 점부터.</h2>
-        <div className="faq-list">
+        <p className="eyebrow" data-reveal>
+          BEFORE WE MEET
+        </p>
+        <h2 data-reveal>상담 전, 궁금한 점부터.</h2>
+        <div className="faq-list" data-reveal-group>
           {faqs.slice(0, 3).map((f, i) => (
             <details key={f.id} open={i === 0}>
               <summary>

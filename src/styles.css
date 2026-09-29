@@ -25,6 +25,19 @@
 body {
   margin: 0;
 }
+/* Content stays visible in server HTML and whenever motion is disabled. */
+@media (prefers-reduced-motion: no-preference) {
+  [data-reveal-state='pending']:not(:focus-within) {
+    opacity: 0;
+  }
+}
+@media print {
+  [data-reveal-state] {
+    opacity: 1 !important;
+    translate: none !important;
+    scale: none !important;
+  }
+}
 button,
 input,
 select,

@@ -32,7 +32,7 @@ export function PageHero({
 }) {
   return (
     <section className="page-hero">
-      <div className="container">
+      <div className="container" data-reveal-group>
         <div className="breadcrumbs">
           <Link to="/">홈</Link>
           <span>/</span>
@@ -66,7 +66,12 @@ export function Checklist({ items }: { items: string[] }) {
 export function ArticleCard({ article, index }: { article: Article; index?: number }) {
   const paths = { practice: 'practice', case: 'cases', guide: 'guides', faq: 'faq', lawyer: 'lawyers' }
   return (
-    <Link to={`/${paths[article.kind]}/${article.id}`} className={`article-card card-${article.kind}`}>
+    <Link
+      to={`/${paths[article.kind]}/${article.id}`}
+      className={`article-card card-${article.kind}`}
+      data-reveal
+      data-reveal-delay={index === undefined ? undefined : (index % 3) * 80}
+    >
       <span className="card-kicker">
         {index !== undefined
           ? String(index + 1).padStart(2, '0')

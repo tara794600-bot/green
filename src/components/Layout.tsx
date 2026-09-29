@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { ArrowRight, Menu, Phone, ArrowUp } from 'lucide-react'
 import { useContent } from '../lib/content-context'
 import { Modal } from './ui'
 import { captureVisit } from '../lib/attribution'
+import { useScrollReveal } from '../lib/use-scroll-reveal'
 
 const navigation = [
   {
@@ -41,7 +42,7 @@ export function ContactBanner() {
   const { settings } = useContent()
   return (
     <section className="contact-banner">
-      <div className="container banner-inner">
+      <div className="container banner-inner" data-reveal-group>
         <div>
           <p className="eyebrow">WE ARE HERE WITH YOU</p>
           <h2>
@@ -67,11 +68,13 @@ export default function Layout() {
   const [menu, setMenu] = useState(false),
     { pathname, hash } = useLocation(),
     { settings, powerlinkPrefix } = useContent()
+  const main = useRef<HTMLElement>(null)
   useEffect(() => {
     captureVisit(powerlinkPrefix)
     if (hash) document.getElementById(hash.slice(1))?.scrollIntoView({ behavior: 'smooth' })
     else window.scrollTo({ top: 0, behavior: 'instant' })
   }, [pathname, hash, powerlinkPrefix])
+  useScrollReveal(main, pathname)
   return (
     <>
       <a className="skip-link" href="#main-content">
@@ -128,7 +131,7 @@ export default function Layout() {
           </nav>
         </Modal>
       )}
-      <main id="main-content">
+      <main id="main-content" ref={main}>
         <Outlet />
       </main>
       <footer className="site-footer">

@@ -38,8 +38,10 @@ export default function RollingShowcase({ items }: { items: RollingCase[] }) {
   }
   return (
     <section className="section container rolling-showcase" aria-label="등록된 사건 사례">
-      <p className="eyebrow">NARAN · CASE RESULTS</p>
-      <div className="section-heading">
+      <p className="eyebrow" data-reveal>
+        NARAN · CASE RESULTS
+      </p>
+      <div className="section-heading" data-reveal>
         <div>
           <h2>사건의 기록, 나란의 발걸음.</h2>
           <p className="muted">개별 사건의 결과는 사실관계와 증거에 따라 달라집니다.</p>
@@ -62,6 +64,7 @@ export default function RollingShowcase({ items }: { items: RollingCase[] }) {
       </div>
       <div
         className="rolling-track"
+        data-reveal
         ref={track}
         onMouseEnter={() => setHover(true)}
         onMouseLeave={() => setHover(false)}
