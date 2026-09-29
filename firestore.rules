@@ -1,0 +1,8 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // All data access is mediated by the password-authenticated server API.
+    // The Admin SDK bypasses these rules; no browser has direct DB access.
+    match /{document=**} { allow read, write: if false; }
+  }
+}

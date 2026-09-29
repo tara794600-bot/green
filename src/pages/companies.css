@@ -1,0 +1,329 @@
+.company-search {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: min(100%, 800px);
+  margin: 0 auto 48px;
+  padding: 12px 14px 12px 24px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: #6f7a6a;
+}
+.company-search input {
+  flex: 1;
+  width: 0;
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  outline: none;
+  padding: 8px 0;
+  font-size: 15px;
+}
+.company-results {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  color: #7b8476;
+  font-size: 14px;
+}
+.company-results strong {
+  color: #3e5538;
+  margin-left: 8px;
+}
+.company-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 28px;
+}
+.company-card {
+  display: block;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  overflow: hidden;
+  background: #fff;
+  transition:
+    transform 0.2s,
+    border-color 0.2s;
+}
+.company-card:hover {
+  transform: translateY(-4px);
+  border-color: #95a88b;
+}
+.company-card-image {
+  height: 245px;
+  padding: 22px;
+  background: #eef1e9;
+}
+.company-card-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.company-card-copy {
+  padding: 26px;
+}
+.company-card-copy > span {
+  color: #84907b;
+  font-size: 12px;
+}
+.company-card-copy h3 {
+  font-size: 21px;
+  margin: 12px 0;
+}
+.company-card-copy p {
+  color: #7c8476;
+  font-size: 13px;
+  line-height: 1.9;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: pre-line;
+}
+.company-card-copy > strong {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 500;
+  border-top: 1px solid var(--line);
+  margin-top: 24px;
+  padding-top: 18px;
+}
+.company-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 25px;
+  margin-top: 40px;
+  font-size: 13px;
+}
+.company-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: 70px;
+  align-items: start;
+}
+.company-document {
+  padding: 24px;
+  background: #edf0e7;
+  border: 1px solid var(--line);
+}
+.company-document img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.company-detail-description {
+  white-space: pre-line;
+  line-height: 2;
+  font-size: 15px;
+  color: #6c7765;
+  overflow-wrap: anywhere;
+}
+.company-detail-cta {
+  padding: 28px;
+  margin-top: 40px;
+  background: #f0f3e9;
+  border: 1px solid var(--line);
+}
+.company-detail-cta h3 {
+  font-size: 19px;
+  margin: 0 0 8px;
+}
+.company-detail-cta p {
+  font-size: 13px;
+  color: #7c8476;
+}
+.company-detail-cta .button {
+  margin-top: 12px;
+}
+.company-detail-cta .text-button {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 18px;
+  font-size: 13px;
+}
+.company-back {
+  margin-bottom: 90px;
+}
+.company-phone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding-block: 75px 110px;
+}
+.company-phone-icon {
+  display: grid;
+  place-items: center;
+  width: 85px;
+  height: 85px;
+  border-radius: 50%;
+  background: #e9efdd;
+  margin-bottom: 30px;
+}
+.company-phone h2 {
+  font-size: 27px;
+}
+.company-phone p {
+  color: #7c8476;
+  margin-bottom: 28px;
+}
+.company-phone .arrow-link {
+  margin-top: 26px;
+}
+.landing-keyword {
+  display: inline-block;
+  padding: 8px 14px;
+  border-radius: 4px;
+  background: #e7eddb;
+  color: #516b40;
+  font-size: 15px;
+  margin: 0 0 20px;
+}
+.landing-results {
+  border-top: 1px solid var(--line);
+}
+.rolling-controls {
+  display: flex;
+  gap: 8px;
+}
+.rolling-track {
+  display: flex;
+  gap: 24px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: thin;
+  padding-bottom: 20px;
+}
+.rolling-card {
+  display: block;
+  flex: 0 0 calc((100% - 48px) / 3);
+  min-width: 0;
+  padding: 0;
+  text-align: left;
+  background: #fff;
+  border: 1px solid var(--line);
+  scroll-snap-align: start;
+}
+.rolling-image {
+  position: relative;
+  height: 290px;
+  background: #eef1e9;
+  padding: 24px;
+}
+.rolling-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.rolling-image > span {
+  position: absolute;
+  bottom: 15px;
+  right: 15px;
+  background: #ffffffed;
+  padding: 7px 10px;
+  display: flex;
+  gap: 6px;
+  font-size: 10px;
+  align-items: center;
+  border-radius: 4px;
+}
+.rolling-copy {
+  padding: 25px;
+}
+.rolling-copy > span {
+  font-size: 12px;
+  color: #859179;
+}
+.rolling-copy h3 {
+  font-size: 20px;
+  margin: 10px 0 18px;
+}
+.rolling-copy > strong {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 500;
+  color: #50643d;
+  background: #edf2e5;
+  padding: 6px 10px;
+}
+.rolling-document {
+  padding: 24px;
+}
+.rolling-document p {
+  font-size: 13px;
+  margin: 0 0 20px;
+}
+.rolling-document img {
+  width: 100%;
+  height: auto;
+}
+@media (max-width: 950px) {
+  .company-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .company-detail-grid {
+    gap: 35px;
+  }
+  .rolling-card {
+    flex-basis: calc((100% - 24px) / 2);
+  }
+}
+@media (max-width: 600px) {
+  .company-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .company-card-image {
+    height: 270px;
+  }
+  .company-search {
+    gap: 10px;
+    padding: 10px 10px 10px 16px;
+    margin-bottom: 28px;
+  }
+  .company-search input {
+    font-size: 12px;
+  }
+  .company-search > svg {
+    display: none;
+  }
+  .company-detail-grid {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+  .company-document {
+    padding: 16px;
+  }
+  .company-detail-cta {
+    padding: 22px;
+  }
+  .company-back {
+    margin-bottom: 60px;
+  }
+  .company-phone h2 {
+    font-size: 22px;
+  }
+  .company-phone p {
+    font-size: 13px;
+  }
+  .rolling-card {
+    flex-basis: 85%;
+  }
+  .rolling-image {
+    height: 280px;
+  }
+  .rolling-showcase .section-heading {
+    align-items: flex-start;
+  }
+  .rolling-showcase .muted {
+    font-size: 11px;
+  }
+  .rolling-showcase .section-heading h2 {
+    font-size: 25px;
+  }
+}

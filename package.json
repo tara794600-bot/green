@@ -1,0 +1,48 @@
+{
+  "name": "naranfintect",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build && vite build --ssr src/entry-server.tsx --outDir dist-server",
+    "lint": "eslint src server scripts api tests vite.config.ts playwright.config.ts",
+    "preview": "node scripts/start-server.mjs",
+    "test": "node --test tests/server.test.mjs",
+    "test:e2e": "playwright test",
+    "admin:password": "node scripts/admin-password.mjs",
+    "start": "node scripts/start-server.mjs",
+    "test:render": "node --test tests/render.test.mjs",
+    "format": "prettier --write src server scripts api tests shared *.ts *.js *.json *.html"
+  },
+  "dependencies": {
+    "firebase-admin": "^14.5.0",
+    "googleapis": "^182.0.0",
+    "lucide-react": "^1.48.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-router-dom": "^7.18.4",
+    "sharp": "^0.35.5",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "@vitejs/plugin-react": "^6.1.1",
+    "agent-browser": "^0.38.1",
+    "eslint": "^10.10.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.6",
+    "globals": "^17.12.0",
+    "prettier": "^3.9.9",
+    "typescript": "~6.0.2",
+    "typescript-eslint": "^8.69.0",
+    "vite": "^8.3.0"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}
