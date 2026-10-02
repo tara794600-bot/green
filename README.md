@@ -26,3 +26,5 @@ npm test
 npm run test:e2e
 npm run build
 ```
+
+`npm run build`는 프런트엔드와 서버 렌더링 번들을 생성한 뒤, CommonJS의 ESM 직접 로딩이 제한된 환경에서 API·SSR 진입점을 검사합니다. Vercel 서버 함수에서 HTML 처리 라이브러리의 모듈 호환성 오류가 재발하지 않도록 이 검사를 배포 빌드에 포함합니다.
