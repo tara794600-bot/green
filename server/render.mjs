@@ -1,6 +1,5 @@
 import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
-import { pathToFileURL } from 'node:url'
 import { publicData, allCompanies } from './store.mjs'
 import { requestPublicData } from './reference.mjs'
 
@@ -64,7 +63,7 @@ export async function renderPage(req, res) {
     if (admin || data.landing || !valid)
       template = template.replace('content="index, follow"', 'content="noindex, nofollow"')
     if (!admin) {
-      const { render } = await import(pathToFileURL(resolve('dist-server/entry-server.js')).href)
+      const { render } = await import('../dist-server/entry-server.js')
       template = template.replace(
         '<div id="root"></div>',
         () => `<div id="root">${render(pathname + (search.size ? '?' + search.toString() : ''), data)}</div>`,
