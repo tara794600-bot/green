@@ -5,7 +5,7 @@ import { getStorage } from 'firebase-admin/storage'
 import sharp from 'sharp'
 import { firestore, isLocal, firebaseConfigured, list } from './store.mjs'
 import { HttpError } from './validation.mjs'
-import { documentImageUrls } from '../shared/company-document.mjs'
+import { documentImageUrls } from '../shared/company-document-schema.mjs'
 export async function uploadImage(data) {
   if (typeof data !== 'string' || data.length > 4400000)
     throw new HttpError(400, '이미지는 3MB 이하로 업로드해 주세요.')

@@ -13,7 +13,7 @@ import {
 } from './store.mjs'
 import { companySchema, rollingSchema, HttpError, parse } from './validation.mjs'
 import { deleteUnusedImage } from './media.mjs'
-import { documentImageUrls } from '../shared/company-document.mjs'
+import { documentImageUrls } from '../shared/company-document-schema.mjs'
 
 export function powerlinkPrefix() {
   const prefix = '/' + (process.env.POWERLINK_PATH_PREFIX || 'p').replace(/^\/+|\/+$/g, '') + '/'

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { companyDocumentSchema } from '../shared/company-document.mjs'
+import { companyDocumentSchema } from '../shared/company-document-schema.mjs'
 
 export const categories = [
   '투자·리딩방 사기',

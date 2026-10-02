@@ -46,5 +46,19 @@ export default defineConfig(({ mode }) => {
     server: { host: '127.0.0.1', port: 5173, strictPort: true },
     optimizeDeps: { rolldownOptions: { plugins: [postcssBrowserOptionals] } },
     build: { chunkSizeWarningLimit: 600 },
+    // Vercel's function loader cannot require ESM-only htmlparser2 from the
+    // CommonJS sanitizer. Convert that boundary at build time, preserving the
+    // current sanitizer and its security fixes.
+    ssr: {
+      noExternal: [
+        'sanitize-html',
+        'htmlparser2',
+        'domhandler',
+        'domutils',
+        'dom-serializer',
+        'domelementtype',
+        'entities',
+      ],
+    },
   }
 })

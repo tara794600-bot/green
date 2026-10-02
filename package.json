@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build && vite build --ssr src/entry-server.tsx --outDir dist-server",
+    "build": "tsc -b && vite build && vite build --ssr src/entry-server.tsx --outDir dist-server && node --no-experimental-require-module scripts/check-server-runtime.mjs",
     "lint": "eslint src server scripts api tests vite.config.ts playwright.config.ts",
     "preview": "node scripts/start-server.mjs",
     "test": "node --test tests/server.test.mjs tests/vercel.test.mjs tests/company-document.test.mjs",
