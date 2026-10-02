@@ -9,6 +9,7 @@ import { get, put, publicData } from '../server/store.mjs'
 import { deliver, sheetRow, telegramText } from '../server/integrations.mjs'
 import { hashPassword, verifyPassword } from '../server/auth.mjs'
 import sharp from 'sharp'
+import { testDocument } from './fixtures/company-document.mjs'
 
 const file = resolve(`.local/server-test-${randomUUID()}.json`)
 let server, base, cookie
@@ -188,6 +189,60 @@ test('company CRUD and all three visibility settings match the reference site', 
     400,
   )
 })
+test('rich company documents round-trip through the API, preserve legacy updates and validate limits', async () => {
+  const result = await request(`/admin/companies/${companyId}`, 'PUT', {
+    ...companyPayload,
+    document: testDocument,
+  })
+  assert.equal(result.response.status, 200)
+  assert.deepEqual((await request(`/companies/${companyId}`)).data.document, testDocument)
+  await request(`/admin/companies/${companyId}`, 'PUT', companyPayload)
+  assert.deepEqual((await request(`/companies/${companyId}`)).data.document, testDocument)
+  const invalid = { ...testDocument, blocks: [...testDocument.blocks, testDocument.blocks[0]] }
+  assert.equal(
+    (await request(`/admin/companies/${companyId}`, 'PUT', { ...companyPayload, document: invalid })).response
+      .status,
+    400,
+  )
+  const long = {
+    ...testDocument,
+    blocks: Array.from({ length: 4 }, (_, i) => ({
+      ...testDocument.blocks[0],
+      id: `long-${i}`,
+      content: '한'.repeat(19000),
+    })),
+  }
+  assert.equal(
+    (await request(`/admin/companies/${companyId}`, 'PUT', { ...companyPayload, document: long })).response
+      .status,
+    200,
+  )
+  assert.equal((await request(`/companies/${companyId}`)).data.document.blocks[3].content.length, 19000)
+  await request(`/admin/companies/${companyId}`, 'PUT', {
+    ...companyPayload,
+    document: { version: 1, blocks: [] },
+  })
+})
+
+test('body uploads survive cover replacement and are deleted when their final document reference is removed', async () => {
+  const image = await sharp({ create: { width: 3, height: 3, channels: 3, background: '#668844' } })
+    .png()
+    .toBuffer()
+  const upload = await request('/admin/upload', 'POST', {
+    data: 'data:image/png;base64,' + image.toString('base64'),
+  })
+  const url = upload.data.url
+  const doc = { version: 1, blocks: [{ ...testDocument.blocks[0], content: `![자료](${url})` }] }
+  await request(`/admin/companies/${companyId}`, 'PUT', { ...companyPayload, image: url, document: doc })
+  await request(`/admin/companies/${companyId}`, 'PUT', { ...companyPayload, document: doc })
+  assert.equal((await fetch(base + url)).status, 200)
+  await request(`/admin/companies/${companyId}`, 'PUT', {
+    ...companyPayload,
+    document: { version: 1, blocks: [] },
+  })
+  assert.equal((await fetch(base + url)).status, 404)
+})
+
 test('admin search finds legacy document IDs across all paginated records', async () => {
   await Promise.all(
     Array.from({ length: 31 }, (_, i) =>

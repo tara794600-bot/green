@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build && vite build --ssr src/entry-server.tsx --outDir dist-server",
     "lint": "eslint src server scripts api tests vite.config.ts playwright.config.ts",
     "preview": "node scripts/start-server.mjs",
-    "test": "node --test tests/server.test.mjs tests/vercel.test.mjs",
+    "test": "node --test tests/server.test.mjs tests/vercel.test.mjs tests/company-document.test.mjs",
     "test:e2e": "playwright test",
     "admin:password": "node scripts/admin-password.mjs",
     "start": "node scripts/start-server.mjs",
@@ -16,12 +16,16 @@
     "format": "prettier --write src server scripts api tests shared *.ts *.js *.json *.html"
   },
   "dependencies": {
+    "dompurify": "^3.4.16",
     "firebase-admin": "^14.5.0",
     "googleapis": "^182.0.0",
     "lucide-react": "^1.48.0",
+    "marked": "^18.0.14",
+    "mermaid": "^12.1.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.4",
+    "sanitize-html": "^2.18.0",
     "sharp": "^0.35.5",
     "zod": "^4.6.5"
   },
@@ -31,6 +35,7 @@
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
+    "@types/sanitize-html": "^2.16.2",
     "@vitejs/plugin-react": "^6.1.1",
     "agent-browser": "^0.38.1",
     "eslint": "^10.10.0",

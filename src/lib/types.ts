@@ -1,3 +1,5 @@
+import type { CompanyDocument } from '../../shared/company-document.mjs'
+
 export type ArticleKind = 'practice' | 'case' | 'guide' | 'faq' | 'lawyer'
 export type Article = {
   id: string
@@ -70,6 +72,7 @@ export type CompanyCase = {
   name: string
   service: string
   description: string
+  document?: CompanyDocument
   image: string
   visibility: CompanyVisibility
   createdAt: string

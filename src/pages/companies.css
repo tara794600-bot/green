@@ -149,6 +149,10 @@
 .company-back {
   margin-bottom: 90px;
 }
+.company-rich-section {
+  max-width: 980px;
+  padding-bottom: 70px;
+}
 .company-phone {
   display: flex;
   flex-direction: column;

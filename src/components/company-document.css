@@ -1,0 +1,253 @@
+.company-rich-document {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+.doc-block {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  line-height: 1.85;
+}
+.doc-prose > :first-child {
+  margin-top: 0;
+}
+.doc-prose > :last-child {
+  margin-bottom: 0;
+}
+.doc-prose h1,
+.doc-prose h2,
+.doc-prose h3,
+.doc-prose h4 {
+  color: inherit;
+  font-family: inherit;
+  line-height: 1.4;
+  letter-spacing: -0.035em;
+  margin: 1.5em 0 0.6em;
+}
+.doc-prose h1 {
+  font-size: 2em;
+}
+.doc-prose h2 {
+  font-size: 1.6em;
+}
+.doc-prose h3 {
+  font-size: 1.3em;
+}
+.doc-prose p {
+  margin: 0.7em 0;
+  font-size: inherit;
+  color: inherit;
+}
+.doc-prose a {
+  color: var(--doc-accent, #59754a);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.doc-prose ul,
+.doc-prose ol {
+  padding-left: 1.6em;
+  margin: 0.8em 0;
+}
+.doc-prose li {
+  padding-left: 0.15em;
+}
+.doc-prose blockquote {
+  margin: 1em 0;
+  border-left: 3px solid var(--doc-accent);
+  padding: 0.4em 1em;
+  background: #8599710d;
+}
+.doc-prose pre,
+.doc-diagram-source pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: #edf0eb;
+  color: #364632;
+  padding: 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  text-align: left;
+}
+.doc-prose code {
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: #75896016;
+  font-size: 0.85em;
+}
+.doc-prose pre code {
+  padding: 0;
+  background: none;
+}
+.doc-prose table {
+  border-collapse: collapse;
+  width: 100%;
+  table-layout: fixed;
+  font-size: 0.9em;
+  margin: 1em 0;
+}
+.doc-prose td,
+.doc-prose th {
+  border: 1px solid #dce4d7;
+  padding: 10px;
+  overflow-wrap: anywhere;
+}
+.doc-prose th {
+  background: #85997112;
+}
+.doc-prose img,
+.doc-block figure img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin-inline: auto;
+  border-radius: 6px;
+}
+.doc-prose input[type='checkbox'] {
+  width: auto;
+  margin: 0 0.4em 0 0;
+  accent-color: #59754a;
+}
+.doc-prose details {
+  padding: 12px 16px;
+  border: 1px solid #dce4d7;
+  border-radius: 8px;
+}
+.doc-prose summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.doc-block hr {
+  border: 0;
+  border-top: 1px solid;
+  margin: 12px 0;
+}
+.doc-block figure {
+  margin: 0;
+}
+.doc-block figcaption {
+  font-size: 13px;
+  margin-top: 12px;
+  opacity: 0.75;
+  white-space: pre-line;
+}
+.doc-stat-value {
+  display: block;
+  font-size: 1em;
+  font-weight: 750;
+  line-height: 1.25;
+  color: var(--doc-accent);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.04em;
+}
+.doc-stat-caption {
+  font-size: 14px;
+  line-height: 1.7;
+  margin: 12px 0 0;
+  white-space: pre-line;
+}
+.doc-placeholder {
+  font-size: 13px;
+  color: #7c887f;
+}
+.doc-diagram {
+  font-size: 14px;
+}
+.doc-diagram-svg {
+  overflow-x: auto;
+  padding: 8px 0;
+}
+.doc-diagram-svg svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: auto;
+}
+.doc-diagram-source {
+  font-size: 11px;
+  text-align: left;
+  opacity: 0.75;
+  margin-top: 12px;
+}
+.doc-diagram-source summary {
+  cursor: pointer;
+}
+.doc-diagram-error {
+  color: #a24432;
+  font-size: 13px;
+}
+.doc-shadow-soft {
+  box-shadow: 0 5px 20px #193a2210;
+}
+.doc-shadow-strong {
+  box-shadow: 0 12px 32px #193a2224;
+}
+.doc-prose .doc-highlight {
+  background: #f7e9ad;
+  color: #5b4b1e;
+  padding: 2px 5px;
+  border-radius: 3px;
+}
+.doc-prose .doc-number {
+  font-size: 1.5em;
+  font-weight: 750;
+  color: var(--doc-accent);
+}
+.doc-prose .doc-box {
+  padding: 20px;
+  border: 1px solid #dce4d7;
+  border-radius: 10px;
+  background: #f4f7f0;
+}
+.doc-fade {
+  animation: doc-fade-in 0.65s ease both;
+}
+.doc-pulse {
+  animation: doc-pulse 2.8s ease-in-out 3;
+}
+.doc-float {
+  animation: doc-float 3s ease-in-out 3;
+}
+@keyframes doc-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes doc-pulse {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.13);
+  }
+}
+@keyframes doc-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .doc-fade,
+  .doc-pulse,
+  .doc-float {
+    animation: none;
+  }
+}
+@media (max-width: 600px) {
+  .doc-block {
+    font-size: min(1em, 20px);
+  }
+  .doc-type-stat {
+    font-size: 42px !important;
+  }
+}

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { companyDocumentSchema } from '../shared/company-document.mjs'
 
 export const categories = [
   '투자·리딩방 사기',
@@ -58,6 +59,7 @@ export const companySchema = z
     name: z.string().trim().min(1).max(80),
     service: z.string().trim().min(1).max(80),
     description: z.string().trim().min(1).max(2000),
+    document: companyDocumentSchema.optional(),
     image: safeImage.refine(Boolean, '이미지를 등록해 주세요.'),
     visibility: z.enum(['public', 'phone', 'searchBlocked']),
   })

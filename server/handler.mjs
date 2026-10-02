@@ -26,7 +26,14 @@ import { sitemap } from './render.mjs'
 import { attribution, companyDetail, landingData, referenceAdmin, requestPublicData } from './reference.mjs'
 
 async function body(req) {
+  const max = req.url?.endsWith('/upload')
+    ? 4500000
+    : /^\/api\/admin\/companies(?:\/[^/?]+)?(?:\?|$)/.test(req.url || '')
+      ? 800000
+      : 64000
   if (req.body) {
+    if (Buffer.byteLength(typeof req.body === 'string' ? req.body : JSON.stringify(req.body)) > max)
+      throw new HttpError(413, '요청이 너무 큽니다.')
     if (typeof req.body === 'string') {
       try {
         return JSON.parse(req.body)
@@ -36,14 +43,16 @@ async function body(req) {
     }
     return req.body
   }
-  let raw = ''
-  const max = req.url?.endsWith('/upload') ? 4500000 : 64000
+  const chunks = []
+  let bytes = 0
   for await (const chunk of req) {
-    raw += chunk
-    if (Buffer.byteLength(raw) > max) throw new HttpError(413, '요청이 너무 큽니다.')
+    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
+    bytes += buffer.length
+    if (bytes > max) throw new HttpError(413, '요청이 너무 큽니다.')
+    chunks.push(buffer)
   }
   try {
-    return JSON.parse(raw || '{}')
+    return JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}')
   } catch {
     throw new HttpError(400, 'JSON 형식을 확인해 주세요.')
   }

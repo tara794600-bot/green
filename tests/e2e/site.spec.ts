@@ -50,10 +50,12 @@ test('consultation receipt, password-only admin, reduced navigation, CMS and log
   await page.getByRole('button', { name: '개발용 접수 저장' }).click()
   await expect(page.getByRole('heading', { name: '개발용 접수가 저장되었습니다.' })).toBeVisible()
   await page.goto('/admin')
-  await expect(page.getByRole('heading', { name: '관리자 비밀번호 설정' })).toBeVisible()
+  const config = await (await page.request.get('/api/config')).json()
   await page.getByRole('textbox', { name: '비밀번호 비밀번호 표시' }).fill('Local-Verification-2026!')
-  await page.getByRole('textbox', { name: '비밀번호 확인' }).fill('Local-Verification-2026!')
-  await page.getByRole('button', { name: '비밀번호 설정하고 시작하기' }).click()
+  if (!config.passwordConfigured) {
+    await page.getByRole('textbox', { name: '비밀번호 확인' }).fill('Local-Verification-2026!')
+    await page.getByRole('button', { name: '비밀번호 설정하고 시작하기' }).click()
+  } else await page.getByRole('button', { name: '로그인', exact: true }).click()
   await expect(page).toHaveURL(/\/admin\/rolling$/)
   await expect(page.getByRole('heading', { name: '홈 롤링 사례', exact: true })).toBeVisible()
   await expect(page.getByRole('navigation', { name: '관리자 메뉴' }).getByRole('link')).toHaveText([

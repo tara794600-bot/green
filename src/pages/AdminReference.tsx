@@ -26,6 +26,8 @@ import {
   type RollingCase,
 } from '../lib/types'
 import { EmptyState, ErrorNotice, Modal } from '../components/ui'
+import CompanyDocumentEditor from '../components/CompanyDocumentEditor'
+import { companyDocumentSchema, type CompanyDocument } from '../../shared/company-document.mjs'
 import './reference.css'
 
 type Kind = 'rolling' | 'companies' | 'powerlinks'
@@ -436,6 +438,21 @@ function ReferenceEditor({
   onSave: (message: string) => Promise<void>
 }) {
   const initial = value === 'new' ? null : value
+  const [document, setDocument] = useState<CompanyDocument>(() =>
+    initial && 'document' in initial && initial.document ? initial.document : { version: 1, blocks: [] },
+  )
+  const imageFiles = useRef(new Map<string, File>())
+  useEffect(() => {
+    const files = imageFiles.current
+    return () => {
+      for (const url of files.keys()) URL.revokeObjectURL(url)
+    }
+  }, [])
+  function addImageFile(file: File) {
+    const url = URL.createObjectURL(file)
+    imageFiles.current.set(url, file)
+    return url
+  }
   const [fields, setFields] = useState({
     category: initial && 'category' in initial ? initial.category : '',
     title: initial && 'title' in initial ? initial.title : '',
@@ -467,10 +484,41 @@ function ReferenceEditor({
     }
     setBusy(true)
     setError('')
+    const uploadedImages: string[] = []
     let uploaded = '',
       persisted = false
     try {
-      if (file) uploaded = await uploadImage(file)
+      // Validate before uploading, substituting only local images owned by this editor.
+      if (kind === 'companies') {
+        const checked = companyDocumentSchema.safeParse({
+          ...document,
+          blocks: document.blocks.map((b) =>
+            b.type === 'image' && imageFiles.current.has(b.content)
+              ? { ...b, content: '/images/pending.webp' }
+              : b,
+          ),
+        })
+        if (!checked.success) throw new Error(checked.error.issues[0].message)
+      }
+      if (file) {
+        uploaded = await uploadImage(file)
+        uploadedImages.push(uploaded)
+      }
+      const savedDocument: CompanyDocument = { ...document, blocks: [] }
+      const localUploads = new Map<string, string>()
+      if (kind === 'companies')
+        for (const block of document.blocks) {
+          const bodyFile = block.type === 'image' ? imageFiles.current.get(block.content) : undefined
+          if (bodyFile) {
+            let url = localUploads.get(block.content)
+            if (!url) {
+              url = await uploadImage(bodyFile)
+              localUploads.set(block.content, url)
+              uploadedImages.push(url)
+            }
+            savedDocument.blocks.push({ ...block, content: url })
+          } else savedDocument.blocks.push(block)
+        }
       const selectedImage = uploaded || image
       const payload =
         kind === 'rolling'
@@ -480,6 +528,7 @@ function ReferenceEditor({
                 name: fields.name,
                 service: fields.service,
                 description: fields.description,
+                document: savedDocument,
                 visibility: fields.visibility,
                 image: selectedImage,
               }
@@ -497,10 +546,9 @@ function ReferenceEditor({
       )
     } catch (e) {
       setError(errorMessage(e))
-      if (uploaded && !persisted && e instanceof ApiError && e.status >= 400 && e.status < 500)
-        await api('/admin/media', { method: 'DELETE', body: JSON.stringify({ url: uploaded }) }).catch(
-          () => {},
-        )
+      if (!persisted && (!(e instanceof ApiError) || (e.status >= 400 && e.status < 500)))
+        for (const url of uploadedImages)
+          await api('/admin/media', { method: 'DELETE', body: JSON.stringify({ url }) }).catch(() => {})
     } finally {
       setBusy(false)
     }
@@ -509,6 +557,7 @@ function ReferenceEditor({
     <Modal
       title={initial ? `${descriptions[kind].title} 수정` : descriptions[kind].button}
       wide={kind !== 'powerlinks'}
+      className={kind === 'companies' ? 'company-editor-modal' : ''}
       onClose={() => {
         if (!busy) onClose()
       }}
@@ -590,16 +639,16 @@ function ReferenceEditor({
                     </label>
                   </div>
                   <label>
-                    설명
+                    설명 · 목록용 요약
                     <textarea
                       required
-                      rows={5}
+                      rows={3}
                       maxLength={2000}
                       value={fields.description}
                       onChange={(e) => change('description', e.target.value)}
                       placeholder="피해 유형 또는 진행 상태"
                     />
-                    <small>{fields.description.length} / 2,000자</small>
+                    <small>목록과 검색에 표시할 짧은 안내입니다. {fields.description.length} / 2,000자</small>
                   </label>
                   <fieldset className="visibility-options">
                     <legend>게시물 노출 설정</legend>
@@ -648,6 +697,9 @@ function ReferenceEditor({
                 />
                 <small>JPG · PNG · WebP / 최대 10MB. 업로드할 때 웹용 이미지로 최적화합니다.</small>
               </label>
+              {kind === 'companies' && (
+                <CompanyDocumentEditor value={document} onChange={setDocument} onImageFile={addImageFile} />
+              )}
             </>
           )}
         </fieldset>

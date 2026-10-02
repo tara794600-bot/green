@@ -13,6 +13,7 @@ import {
 } from './store.mjs'
 import { companySchema, rollingSchema, HttpError, parse } from './validation.mjs'
 import { deleteUnusedImage } from './media.mjs'
+import { documentImageUrls } from '../shared/company-document.mjs'
 
 export function powerlinkPrefix() {
   const prefix = '/' + (process.env.POWERLINK_PATH_PREFIX || 'p').replace(/^\/+|\/+$/g, '') + '/'
@@ -116,13 +117,14 @@ export async function referenceAdmin(path, method, url, readBody, req) {
     const payload = parse(kind === 'companies' ? companySchema : rollingSchema, await readBody())
     const recordId = id || randomUUID(),
       now = new Date().toISOString()
-    let previousImage
+    let previousImages = []
     const value = await mutate(collection, recordId, (old) => {
       if (id && !old) throw new HttpError(404, '등록된 항목이 없습니다.')
-      previousImage = old?.image
+      previousImages = documentImageUrls(old)
       const { visibility, ...fields } = payload
       return {
         ...fields,
+        ...(kind === 'companies' && !fields.document && old?.document ? { document: old.document } : {}),
         id: recordId,
         createdAt: normalizeRecord(old || {}).createdAt || now,
         updatedAt: now,
@@ -131,8 +133,11 @@ export async function referenceAdmin(path, method, url, readBody, req) {
           : {}),
       }
     })
-    const warning =
-      previousImage && previousImage !== value.image ? await deleteUnusedImage(previousImage) : ''
+    const currentImages = documentImageUrls(value)
+    const warnings = await Promise.all(
+      previousImages.filter((url) => !currentImages.includes(url)).map(deleteUnusedImage),
+    )
+    const warning = warnings.find(Boolean) || ''
     await audit(`${labels[kind]} ${id ? '수정' : '등록'}`, recordId)
     return { ...value, ...(kind === 'companies' ? { visibility: payload.visibility } : {}), warning }
   }
@@ -160,7 +165,8 @@ export async function referenceAdmin(path, method, url, readBody, req) {
       old = value
       return null
     })
-    const warning = old?.image ? await deleteUnusedImage(old.image) : ''
+    const warnings = await Promise.all(documentImageUrls(old).map(deleteUnusedImage))
+    const warning = warnings.find(Boolean) || ''
     await audit(`${labels[kind]} 삭제`, id)
     return { ok: true, warning }
   }

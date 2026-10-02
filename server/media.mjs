@@ -5,6 +5,7 @@ import { getStorage } from 'firebase-admin/storage'
 import sharp from 'sharp'
 import { firestore, isLocal, firebaseConfigured, list } from './store.mjs'
 import { HttpError } from './validation.mjs'
+import { documentImageUrls } from '../shared/company-document.mjs'
 export async function uploadImage(data) {
   if (typeof data !== 'string' || data.length > 4400000)
     throw new HttpError(400, '이미지는 3MB 이하로 업로드해 주세요.')
@@ -51,7 +52,7 @@ export async function deleteUnusedImage(url) {
   if (!url) return ''
   try {
     const groups = await Promise.all(['siteContent', 'rollingCases', 'companyCases'].map(list))
-    if (groups.flat().some((v) => !v.deleted && v.image === url)) return ''
+    if (groups.flat().some((v) => !v.deleted && documentImageUrls(v).includes(url))) return ''
     const localName = url.match(/^\/api\/media\/([a-f0-9-]{36}\.webp)$/)?.[1]
     if (localName && isLocal() && !firebaseConfigured()) {
       await unlink(resolve('.local/media', localName)).catch((e) => {

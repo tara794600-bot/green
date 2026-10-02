@@ -5,6 +5,7 @@ import { renderPage, sitemap } from '../server/render.mjs'
 import { put } from '../server/store.mjs'
 import { randomUUID, randomBytes, createCipheriv, createHash } from 'node:crypto'
 import { unlink } from 'node:fs/promises'
+import { testDocument } from './fixtures/company-document.mjs'
 
 let server, base
 before(async () => {
@@ -68,6 +69,13 @@ test('company visibility is reflected in server HTML, search results, and sitema
     let html = await (await fetch(base + '/companies/' + company.id)).text()
     assert.match(html, /<h1>서버검증업체<\/h1>/)
     assert.match(html, /<p class="company-detail-description">서버에서 렌더링한 상세 설명<\/p>/)
+    await put('companyCases', company.id, { ...company, document: testDocument })
+    html = await (await fetch(base + '/companies/' + company.id)).text()
+    assert.match(html, /<h2>상세 안내<\/h2>/)
+    assert.match(html, /class="doc-stat-value">128건<\/strong>/)
+    assert.match(html, /<strong>HTML 안내<\/strong>/)
+    assert.doesNotMatch(html, /<script>alert\(1\)<\/script>/)
+    assert.match(html, /다이어그램 원문/)
     await put('companyCases', company.id, { ...company, isSearchBlocked: true })
     html = await (await fetch(base + '/companies/' + company.id)).text()
     assert.match(html, /content="index, follow"/)

@@ -6,6 +6,7 @@ import { api, ApiError, errorMessage } from '../lib/api'
 import type { CompanyCase } from '../lib/types'
 import { PageHero, EmptyState, ErrorNotice } from '../components/ui'
 import { ContactBanner } from '../components/Layout'
+import CompanyDocumentView from '../components/CompanyDocument'
 import './companies.css'
 
 export function CompanyCards({ items }: { items: CompanyCase[] }) {
@@ -232,6 +233,11 @@ function CompanyDetail({ id }: { id: string }) {
           </div>
         </div>
       </section>
+      {item.document?.blocks.length ? (
+        <section className="container company-rich-section" aria-label="업체 상세 본문">
+          <CompanyDocumentView document={item.document} />
+        </section>
+      ) : null}
       <div className="container company-back">
         <Link className="arrow-link" to="/companies">
           업체 목록으로 돌아가기
