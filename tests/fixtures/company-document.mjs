@@ -1,3 +1,4 @@
+// API·본문 변환·SSR 검증에서 공유하는 문서입니다. 차단 대상 HTML도 의도적으로 포함합니다.
 export const testBlockStyle = {
   color: '#263b2c',
   background: '#f1f5ec',

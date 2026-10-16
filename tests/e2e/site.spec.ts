@@ -1,3 +1,4 @@
+// 공개 탐색부터 관리자 변경·상담 접수까지 전용 로컬 서버에서 확인하는 사용자 흐름 테스트입니다.
 import { test, expect } from '@playwright/test'
 test('public navigation, case search, all details, and mobile menu', async ({ page }) => {
   const errors: string[] = []

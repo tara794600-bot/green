@@ -5,6 +5,7 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
+// 서버 JS에는 Node 전역을, TS/TSX에는 브라우저·React 규칙을 적용합니다.
 export default defineConfig([
   globalIgnores(['dist', 'svg', 'design-reference', '.local', 'artifacts', 'test-results']),
   {

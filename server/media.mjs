@@ -13,6 +13,7 @@ export async function uploadImage(data) {
   if (!match) throw new HttpError(400, 'JPG, PNG, WebP 이미지 파일을 선택해 주세요.')
   const bytes = Buffer.from(match[2], 'base64')
   if (bytes.length > 3 * 1024 * 1024) throw new HttpError(400, '이미지는 3MB 이하여야 합니다.')
+  // 브라우저 최적화 결과도 서버에서 디코딩·크기 제한·WebP 재인코딩을 다시 수행합니다.
   let output
   try {
     output = await sharp(bytes, { limitInputPixels: 40000000, animated: false })
@@ -40,6 +41,7 @@ export async function uploadImage(data) {
     metadata: {
       contentType: 'image/webp',
       cacheControl: 'public,max-age=31536000,immutable',
+      // 브라우저에는 서비스 계정 대신 이 토큰을 포함한 이미지 다운로드 URL만 전달합니다.
       metadata: { firebaseStorageDownloadTokens: token },
     },
   })
@@ -47,7 +49,7 @@ export async function uploadImage(data) {
     url: `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(bucket.name)}/o/${encodeURIComponent(file.name)}?alt=media&token=${token}`,
   }
 }
-// Delete only this site's generated images, and preserve images used by another record.
+// 다른 문서가 참조하는 이미지는 보존하고, 이 사이트 또는 지원하는 참고 프로젝트 경로만 삭제합니다.
 export async function deleteUnusedImage(url) {
   if (!url) return ''
   try {
@@ -91,6 +93,7 @@ export async function deleteUnusedImage(url) {
     return '내용은 저장됐지만 이전 이미지 정리에 실패했습니다. 저장소에서 확인해 주세요.'
   }
 }
+// 개발용 이미지 경로입니다. 파일명 검증으로 상위 경로 접근을 막습니다.
 export async function serveLocalMedia(name, res) {
   if (!isLocal() || !/^[-a-f0-9]{36}\.webp$/.test(name)) throw new HttpError(404, '이미지가 없습니다.')
   let bytes

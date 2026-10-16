@@ -3,6 +3,7 @@ import { Writable } from 'node:stream'
 import { readFile, writeFile } from 'node:fs/promises'
 import { hashPassword } from '../server/auth.mjs'
 
+// 입력 에코를 막아 비밀번호가 터미널에 남지 않게 하고, 파일에는 해시만 저장합니다.
 let muted = false
 const output = new Writable({
   write(chunk, encoding, callback) {
@@ -30,6 +31,7 @@ try {
   } catch (e) {
     if (e.code !== 'ENOENT') throw e
   }
+  // 기존 .env.local의 다른 설정은 보존합니다. 배포 환경변수 반영은 별도로 수행해야 합니다.
   const setting = `ADMIN_PASSWORD_HASH=${hashPassword(password)}`
   env = /^ADMIN_PASSWORD_HASH=.*$/m.test(env)
     ? env.replace(/^ADMIN_PASSWORD_HASH=.*$/m, setting)

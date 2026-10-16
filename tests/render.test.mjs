@@ -7,6 +7,7 @@ import { randomUUID, randomBytes, createCipheriv, createHash } from 'node:crypto
 import { unlink } from 'node:fs/promises'
 import { testDocument } from './fixtures/company-document.mjs'
 
+// 빌드된 SSR 번들을 사용합니다. npm run build 후 실행해 JS 실행 전 HTML·메타정보·404를 확인합니다.
 let server, base
 before(async () => {
   process.env.NODE_ENV = 'production'

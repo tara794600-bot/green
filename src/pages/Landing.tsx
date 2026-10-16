@@ -6,6 +6,7 @@ import type { LandingData } from '../lib/types'
 import { PageHero } from '../components/ui'
 import Home from './Home'
 
+// 토큰 복호화는 서버에서만 수행합니다. SSR 결과로 먼저 표시하고 토큰 변경 시 API로 재조회합니다.
 export default function Landing() {
   const { token = '' } = useParams(),
     { landing } = useContent()

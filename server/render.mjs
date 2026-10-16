@@ -8,11 +8,14 @@ const escape = (value) =>
     /[&<>"']/g,
     (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c],
   )
+// Vercel 함수와 단독 Node 서버가 공유하는 HTML 응답 경로입니다.
+// 공개 화면은 React SSR, 관리자 화면은 빈 루트에 브라우저 앱을 마운트합니다.
 export async function renderPage(req, res) {
   try {
     const url = new URL(req.url, 'http://localhost')
     const rewritten = url.pathname === '/api/render'
     const pathname = req.query?.path || (rewritten ? url.searchParams.get('path') : null) || url.pathname
+    // rewrite용 path만 제거하고 실제 검색·분류 쿼리는 SSR 라우터에 유지합니다.
     const search = new URLSearchParams(url.search)
     if (rewritten || req.query?.path) search.delete('path')
     const data = await requestPublicData(pathname)
@@ -69,6 +72,8 @@ export async function renderPage(req, res) {
         () => `<div id="root">${render(pathname + (search.size ? '?' + search.toString() : ''), data)}</div>`,
       )
     }
+    // script 요소에 JSON을 넣기 전 태그 종료 문자를 이스케이프합니다.
+    // 브라우저는 이 데이터를 재사용해 서버 HTML과 동일한 첫 화면을 그립니다.
     const bootstrap = JSON.stringify(data)
       .replace(/</g, '\\u003c')
       .replace(/\u2028/g, '\\u2028')
@@ -111,6 +116,7 @@ export async function sitemap(req, res) {
     ]
   const kinds = { practice: 'practice', case: 'cases', guide: 'guides', lawyer: 'lawyers' }
   for (const a of articles) if (kinds[a.kind]) paths.push(`/${kinds[a.kind]}/${a.id}`)
+  // 업체의 검색차단은 내부 검색만 제한합니다. 직접 주소는 사이트맵에도 유지합니다.
   for (const company of await allCompanies()) paths.push(`/companies/${company.id}`)
   res.statusCode = 200
   res.setHeader('Content-Type', 'application/xml; charset=utf-8')

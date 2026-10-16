@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { get, mutate, firebaseConfigured } from './store.mjs'
 import { HttpError } from './validation.mjs'
 
+// 키의 존재 여부만 확인합니다. 실제 권한·수신 성공은 별도 접수로 검증해야 합니다.
 export const integrationConfig = () => ({
   firebase: firebaseConfigured(),
   telegram: Boolean(process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID),
@@ -18,6 +19,7 @@ const statusLabels = {
   completed: '상담 완료',
   closed: '종결',
 }
+// OPERATIONS.md의 시트 A~P 열 순서와 일치해야 합니다. 열을 바꾸면 기존 문서도 함께 맞추세요.
 export function sheetRow(r) {
   return [
     r.id,
@@ -84,7 +86,9 @@ export async function syncSheet(r) {
     { spreadsheetId, range: `${tab}!A:A` },
     { timeout: 10000, retry: false },
   )
+  // 접수번호로 기존 행을 찾아 갱신합니다. 조회와 쓰기는 하나의 원자적 작업이 아닙니다.
   const row = existing.data.values?.findIndex((v) => v[0] === r.id) ?? -1
+  // RAW로 기록해 사용자 입력이 시트 수식으로 실행되지 않게 합니다.
   const params = { spreadsheetId, valueInputOption: 'RAW', requestBody: { values: [sheetRow(r)] } }
   if (row >= 0)
     await sheets.spreadsheets.values.update(
@@ -98,7 +102,7 @@ export async function syncSheet(r) {
     )
   return { message: '접수번호 기준으로 시트에 반영했습니다.' }
 }
-// A durable per-channel lease prevents concurrent retries. Ambiguous timeouts require an explicit admin retry.
+// 채널별 전송 잠금을 DB에 보관해 동시 재시도를 제한합니다. 타임아웃은 수신 여부가 불명확한 상태입니다.
 export async function deliver(
   id,
   channels = ['telegram', 'sheets'],
@@ -109,6 +113,7 @@ export async function deliver(
     channels.map(async (channel) => {
       const attemptId = randomUUID(),
         now = Date.now()
+      // 각 채널은 독립적으로 잠금을 얻고 결과를 기록하므로 한 채널의 실패가 다른 채널을 막지 않습니다.
       const record = await mutate('consultationRequests', id, (r) => {
         if (!r) throw new HttpError(404, '접수를 찾을 수 없습니다.')
         const old = r.deliveries[channel]
@@ -154,6 +159,7 @@ export async function deliver(
           message: '전송 결과를 확인하지 못했습니다. 연동 설정과 수신 내역을 확인해 주세요.',
         }
       }
+      // 현재 시도의 식별자가 일치할 때만 결과를 반영해 늦게 끝난 이전 요청의 덮어쓰기를 막습니다.
       await mutate('consultationRequests', id, (r) =>
         r.deliveries[channel].attemptId === attemptId
           ? {

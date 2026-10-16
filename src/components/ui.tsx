@@ -88,6 +88,7 @@ export function ArticleCard({ article, index }: { article: Article; index?: numb
     </Link>
   )
 }
+// native dialog로 포커스·모달 상태를 관리하고 닫을 때 기존 본문 스크롤 설정을 복원합니다.
 export function Modal({
   title,
   children,

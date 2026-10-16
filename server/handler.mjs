@@ -25,6 +25,7 @@ import { serveLocalMedia, uploadImage, deleteUnusedImage } from './media.mjs'
 import { sitemap } from './render.mjs'
 import { attribution, companyDetail, landingData, referenceAdmin, requestPublicData } from './reference.mjs'
 
+// 업로드의 base64 오버헤드와 업체 본문 크기를 고려하되, 요청을 읽는 중에도 상한을 검사합니다.
 async function body(req) {
   const max = req.url?.endsWith('/upload')
     ? 4500000
@@ -98,6 +99,7 @@ export default async function handler(req, res) {
       if (!value) throw new HttpError(404, '유효한 광고 링크가 아닙니다.')
       return json(res, 200, value)
     }
+    // 같은 접수번호·같은 내용은 기존 결과를 반환합니다. 내용이 달라지면 충돌로 처리합니다.
     if (path === '/api/consultation' && method === 'POST') {
       const payload = parse(consultationSchema, await body(req)),
         { requestId, ...fields } = payload
@@ -114,6 +116,7 @@ export default async function handler(req, res) {
       const tracking = await attribution(fields)
       const now = new Date().toISOString()
       const delivery = { status: 'pending', attempts: 0 }
+      // 앞선 조회 이후 동시에 도착한 요청도 다시 비교하고, 외부 알림보다 먼저 저장합니다.
       await mutate('consultationRequests', requestId, (old) => {
         if (old) {
           if (old.requestHash !== hash) throw new HttpError(409, '동일 접수번호의 내용이 다릅니다.')
@@ -136,6 +139,7 @@ export default async function handler(req, res) {
         }
       })
       try {
+        // 요청 처리 중 채널별 전송을 기다립니다. 별도 큐나 백그라운드 재시도 작업은 없습니다.
         await deliver(requestId)
       } catch {
         console.error('[consultation] delivery state update failed; request preserved:', requestId)
@@ -151,6 +155,7 @@ export default async function handler(req, res) {
       return json(res, 200, { ok: true })
     }
     if (!path.startsWith('/api/admin/')) throw new HttpError(404, '요청한 경로를 찾을 수 없습니다.')
+    // 이 지점 아래의 관리자 API는 모두 서버 세션 검증을 통과해야 합니다.
     const identity = await requireAdmin(req)
     const referenceResult = await referenceAdmin(path, method, url, () => body(req), req)
     if (referenceResult) return json(res, method === 'POST' ? 201 : 200, referenceResult)
@@ -163,6 +168,7 @@ export default async function handler(req, res) {
       return json(res, 201, await uploadImage(data.data))
     }
     if (path === '/api/admin/me' && method === 'GET') return json(res, 200, identity)
+    // 상담 관리 API는 유지하지만 현재 관리자 메뉴에는 대응하는 관리 화면이 없습니다.
     if (path === '/api/admin/consultations' && method === 'GET') {
       const rows = await list('consultationRequests')
       return json(
@@ -181,6 +187,7 @@ export default async function handler(req, res) {
         )
         const current = await get('consultationRequests', id)
         if (!current) throw new HttpError(404, '접수를 찾을 수 없습니다.')
+        // 응답을 못 받았어도 외부 서비스에 도착했을 수 있어, 수신 확인 후에만 재전송을 허용합니다.
         const channel = current.deliveries[data.channel]
         if ((channel.status === 'uncertain' || channel.status === 'processing') && !data.confirmUncertain)
           throw new HttpError(409, '중복 전송 가능성이 있습니다. 수신 내역을 확인한 뒤 다시 시도해 주세요.')
@@ -209,6 +216,7 @@ export default async function handler(req, res) {
           }
         })
         await audit(note ? '상담 메모 등록' : '상담 정보 변경', id, Object.keys(patch).join(', '))
+        // 상태·담당자 수정은 Sheets만 다시 동기화하고 Telegram 신규 알림은 반복하지 않습니다.
         if ('status' in patch || 'assignee' in patch) {
           try {
             await deliver(id, ['sheets'])
@@ -234,6 +242,7 @@ export default async function handler(req, res) {
     }
     const contentMatch = path.match(/^\/api\/admin\/content\/([a-z0-9-]+)$/)
     if (contentMatch && method === 'DELETE') {
+      // 문서 자체를 없애면 기본 콘텐츠가 다시 보이므로 삭제 표식을 저장합니다.
       await put('siteContent', contentMatch[1], { id: contentMatch[1], deleted: true, published: false })
       await audit('콘텐츠 삭제', contentMatch[1])
       return json(res, 200, { ok: true })
@@ -255,6 +264,7 @@ export default async function handler(req, res) {
       })
     throw new HttpError(404, '요청한 경로를 찾을 수 없습니다.')
   } catch (e) {
+    // 예상하지 못한 내부 오류의 상세값은 공개 응답에 포함하지 않습니다.
     const status = e instanceof HttpError ? e.status : 500
     if (status >= 500) console.error('[api]', req.method, req.url, e.name, e.code || 'server_error')
     return json(res, status, {

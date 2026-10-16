@@ -1,3 +1,4 @@
+// JS로 공유하는 문서 형식의 TypeScript 선언입니다. 스키마·렌더러 변경 시 함께 맞춥니다.
 import type { z } from 'zod'
 export type BlockType = 'markdown' | 'callout' | 'stat' | 'mermaid' | 'html' | 'image' | 'divider'
 export type BlockStyle = {

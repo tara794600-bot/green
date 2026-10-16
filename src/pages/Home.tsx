@@ -8,6 +8,7 @@ import { CompanyCards } from './Companies'
 import type { LandingData } from '../lib/types'
 import heroImage from '../assets/hero-consultation.webp'
 
+// 일반 홈과 광고 랜딩이 같은 화면을 공유하며, landing이 있으면 키워드와 관련 업체를 추가합니다.
 export default function Home({ landing }: { landing?: LandingData | null }) {
   const { articles, settings, rollingCases = [] } = useContent(),
     practices = articles.filter((a) => a.kind === 'practice'),

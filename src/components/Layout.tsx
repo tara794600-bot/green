@@ -70,6 +70,7 @@ export default function Layout() {
     { settings, powerlinkPrefix } = useContent()
   const main = useRef<HTMLElement>(null)
   useEffect(() => {
+    // 공개 경로 이동마다 확인하되 최초 유입 유지·새 캠페인 판정은 captureVisit 내부에서 처리합니다.
     captureVisit(powerlinkPrefix)
     if (hash) document.getElementById(hash.slice(1))?.scrollIntoView({ behavior: 'smooth' })
     else window.scrollTo({ top: 0, behavior: 'instant' })

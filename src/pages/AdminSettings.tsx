@@ -31,6 +31,7 @@ export default function AdminSettings() {
     try {
       await api('/admin/settings', { method: 'PUT', body: JSON.stringify(settings) })
       setMessage('사이트 설정을 저장했습니다.')
+      // App의 공개 데이터도 다시 읽어 공통 헤더·연락처·홈 문구를 함께 갱신합니다.
       window.dispatchEvent(new Event('content-updated'))
     } catch (e) {
       setError(errorMessage(e))

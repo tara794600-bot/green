@@ -5,6 +5,7 @@ export class ApiError extends Error {
     this.status = status
   }
 }
+// 같은 출처의 세션 쿠키를 사용합니다. 호출자가 취소 신호를 주지 않으면 30초 제한을 적용합니다.
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(`/api${path}`, {
     ...options,
@@ -36,6 +37,7 @@ export const dateTime = (value: string) => {
     timeZone: 'Asia/Seoul',
   }).format(date)
 }
+// BOM으로 한글 CSV 호환성을 확보하고 수식 시작 문자를 이스케이프해 스프레드시트 실행을 막습니다.
 export function csvDownload(rows: string[][], name: string) {
   const safe = (s: string) => `"${(/^[\s]*[=+@-]/.test(s) ? "'" + s : s).replace(/"/g, '""')}"`
   const blob = new Blob(['\uFEFF' + rows.map((row) => row.map(safe).join(',')).join('\r\n')], {

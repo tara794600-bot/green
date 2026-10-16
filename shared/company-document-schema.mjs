@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-// API validation and media cleanup must not load browser/HTML rendering libraries.
+// API 검증·이미지 정리에서 HTML 렌더링 라이브러리를 불러오지 않도록 스키마를 별도 분리합니다.
 export const MAX_BLOCKS = 80
 export const MAX_DOCUMENT_LENGTH = 100000
 export const blockTypes = ['markdown', 'callout', 'stat', 'mermaid', 'html', 'image', 'divider']
@@ -38,6 +38,7 @@ export const companyDocumentSchema = z
       .max(MAX_BLOCKS, '본문은 최대 80개 블록까지 추가할 수 있습니다.'),
   })
   .strict()
+  // 블록별 제한 외에 문서 전체 크기와 ID 고유성을 검사합니다. 편집기와 동일한 상한입니다.
   .superRefine((doc, ctx) => {
     if (new Set(doc.blocks.map((b) => b.id)).size !== doc.blocks.length)
       ctx.addIssue({ code: 'custom', message: '블록 ID가 중복되었습니다.' })
@@ -60,7 +61,7 @@ export function documentImageUrls(record) {
   const urls = new Set(record?.image ? [record.image] : [])
   for (const block of record?.document?.blocks || []) {
     if (block.type === 'image' && block.content) urls.add(block.content)
-    // Preserve an uploaded cover reused inside Markdown or HTML as well.
+    // 대표 이미지를 마크다운·HTML 본문에서 재사용한 경우에도 삭제하지 않도록 참조를 수집합니다.
     for (const match of block.content.matchAll(
       /(?:\/api\/media\/[a-f0-9-]{36}\.webp|https:\/\/firebasestorage\.googleapis\.com\/[^\s<>"')]+)/g,
     ))

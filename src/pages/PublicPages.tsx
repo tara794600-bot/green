@@ -17,6 +17,7 @@ import { ContactBanner } from '../components/Layout'
 import type { Article, ArticleKind } from '../lib/types'
 import Companies from './Companies'
 
+// 상세 ID뿐 아니라 콘텐츠 종류도 검사해 다른 종류의 URL에서 글이 잘못 표시되지 않게 합니다.
 export default function PublicPages() {
   const { pathname } = useLocation(),
     { articles } = useContent()
@@ -140,6 +141,7 @@ function Library({ kind }: { kind: ArticleKind }) {
   const pages = Math.ceil(filtered.length / 9),
     current = Math.min(page, Math.max(pages, 1)),
     visible = filtered.slice((current - 1) * 9, current * 9)
+  // 검색·분류를 바꾸면 이전 페이지 번호를 버려 결과가 있어도 빈 화면이 나오는 것을 방지합니다.
   const change = (key: string, value: string) => {
     const next = new URLSearchParams(params)
     next.set(key, value)

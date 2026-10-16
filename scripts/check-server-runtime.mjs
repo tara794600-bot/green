@@ -8,15 +8,14 @@ import renderPage from '../api/render.js'
 import { render } from '../dist-server/entry-server.js'
 import { testDocument } from '../tests/fixtures/company-document.mjs'
 
-// Run with --no-experimental-require-module to match the Vercel function loader.
-// Import both API entries and the built renderer: a normal local Node import
-// would mask CommonJS dependencies that synchronously require ESM-only modules.
+// Vercel 함수 로더 조건에 맞춰 --no-experimental-require-module 옵션으로 실행합니다.
+// 일반 로컬 Node에서는 놓칠 수 있는 CommonJS → ESM 직접 로딩 오류를 API·SSR 양쪽에서 잡습니다.
 assert.equal(typeof handler, 'function')
 assert.equal(typeof renderPage, 'function')
 assert.equal(typeof render, 'function')
 
-// The deployed renderer must also work without the repository's node_modules.
-// Generated require aliases are not necessarily followed by file tracing.
+// 파일 추적이 생성된 require 별칭을 놓쳐도 동작하도록 SSR 번들은 자체 의존성을 포함해야 합니다.
+// 프로젝트 node_modules와 분리된 임시 경로에서 실제 문서 렌더링까지 확인합니다.
 const temporaryRoot = resolve(tmpdir())
 const isolated = await mkdtemp(join(temporaryRoot, 'naran-ssr-check-'))
 try {

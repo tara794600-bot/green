@@ -9,6 +9,7 @@ const PublicPages = lazy(() => import('./pages/PublicPages'))
 const Consultation = lazy(() => import('./pages/Consultation'))
 const Admin = lazy(() => import('./pages/Admin'))
 const Landing = lazy(() => import('./pages/Landing'))
+// SPA 내부 이동의 제목·검색 설정을 갱신합니다. 초기 HTML의 메타정보는 server/render.mjs가 담당합니다.
 function Metadata() {
   const { pathname } = useLocation()
   const { articles, companies, selectedCompany, powerlinkPrefix, landing } = useContent()
@@ -64,6 +65,7 @@ class AppBoundary extends Component<{ children: ReactNode }, { failed: boolean }
     )
   }
 }
+// 서버가 주입한 공개 데이터로 첫 화면을 맞춘 뒤 API로 갱신해 hydration 불일치를 줄입니다.
 export default function App() {
   const [content, setContent] = useState<PublicData | null>(() => {
       try {
@@ -88,6 +90,7 @@ export default function App() {
         })
     void refresh()
     window.addEventListener('focus', refresh)
+    // 관리자 저장 후 같은 앱의 공개 콘텐츠도 다시 읽도록 하는 내부 이벤트입니다.
     window.addEventListener('content-updated', refresh)
     return () => {
       active = false

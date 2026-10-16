@@ -69,6 +69,7 @@ export default function AdminReference({ kind }: { kind: Kind }) {
   const [edit, setEdit] = useState<Row | 'new' | null>(null),
     [removing, setRemoving] = useState<Row | null>(null),
     [busy, setBusy] = useState(false)
+  // 검색·페이지 요청이 역순으로 끝나도 최신 요청의 결과만 목록에 반영합니다.
   const requestNumber = useRef(0)
   const refresh = useCallback(() => {
     const number = ++requestNumber.current
@@ -441,6 +442,7 @@ function ReferenceEditor({
   const [document, setDocument] = useState<CompanyDocument>(() =>
     initial && 'document' in initial && initial.document ? initial.document : { version: 1, blocks: [] },
   )
+  // 편집 중에는 blob URL로 미리보기만 만듭니다. 실제 업로드는 저장 시 수행하고 닫을 때 URL을 해제합니다.
   const imageFiles = useRef(new Map<string, File>())
   useEffect(() => {
     const files = imageFiles.current
@@ -488,7 +490,7 @@ function ReferenceEditor({
     let uploaded = '',
       persisted = false
     try {
-      // Validate before uploading, substituting only local images owned by this editor.
+      // 업로드 전에 문서를 검사합니다. 이 편집기가 보유한 blob URL만 검증용 경로로 임시 치환합니다.
       if (kind === 'companies') {
         const checked = companyDocumentSchema.safeParse({
           ...document,
@@ -505,6 +507,7 @@ function ReferenceEditor({
         uploadedImages.push(uploaded)
       }
       const savedDocument: CompanyDocument = { ...document, blocks: [] }
+      // 복제한 블록이 같은 blob URL을 참조하면 한 번만 업로드하고 저장용 URL을 재사용합니다.
       const localUploads = new Map<string, string>()
       if (kind === 'companies')
         for (const block of document.blocks) {
@@ -546,6 +549,7 @@ function ReferenceEditor({
       )
     } catch (e) {
       setError(errorMessage(e))
+      // 5xx 응답은 저장 여부가 불명확하므로 즉시 정리하지 않습니다. 삭제 API도 공유 참조를 재검사합니다.
       if (!persisted && (!(e instanceof ApiError) || (e.status >= 400 && e.status < 500)))
         for (const url of uploadedImages)
           await api('/admin/media', { method: 'DELETE', body: JSON.stringify({ url }) }).catch(() => {})

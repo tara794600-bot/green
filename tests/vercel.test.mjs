@@ -28,6 +28,7 @@ after(async () => {
   await unlink(file).catch(() => {})
 })
 
+// vercel.json의 rewrite 결과로 요청해 배포 환경의 경로 복원·쿼리 전달을 검증합니다.
 function rewritten(path) {
   const url = new URL(path, base)
   const destination = new URL(rewrite.destination.replace(':path*', url.pathname.slice('/api/'.length)), base)

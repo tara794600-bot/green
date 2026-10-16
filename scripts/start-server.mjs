@@ -9,6 +9,7 @@ try {
 } catch (e) {
   if (e.code !== 'ENOENT') throw e
 }
+// npm start/preview는 빌드 검수·운영용입니다. 개발용 로컬 DB로 자동 전환되지 않습니다.
 process.env.NODE_ENV = 'production'
 const root = resolve('dist'),
   mime = {
@@ -38,6 +39,7 @@ const server = createServer(async (req, res) => {
   }
   try {
     const file = resolve(root, '.' + decodeURIComponent(url.pathname))
+    // 정적 파일 조회가 dist 바깥으로 벗어나지 않게 합니다. 나머지 앱 경로는 SSR로 처리합니다.
     if (!file.startsWith(root + sep)) return renderPage(req, res)
     if ((await stat(file)).isFile()) {
       res.statusCode = 200

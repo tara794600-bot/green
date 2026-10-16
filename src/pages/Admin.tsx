@@ -22,6 +22,7 @@ import './admin.css'
 const ContentManager = lazy(() => import('./ContentManager'))
 const AdminSettings = lazy(() => import('./AdminSettings'))
 const AdminReference = lazy(() => import('./AdminReference'))
+// 현재 제공하는 다섯 메뉴입니다. 서버에 남아 있는 상담·감사 API와 화면 범위는 다릅니다.
 const nav = [
   { path: '/admin/rolling', label: '홈 롤링 사례', icon: Layers },
   { path: '/admin/companies', label: '사기업체 관리', icon: Building2 },
@@ -43,6 +44,7 @@ export default function Admin() {
         const c = await api<AppConfig>('/config')
         if (!active) return
         setConfig(c)
+        // 비밀번호나 토큰을 JS 저장소에서 복원하지 않고 HttpOnly 쿠키의 서버 세션을 조회합니다.
         if (c.passwordConfigured) {
           try {
             const user = await api<AdminIdentity>('/admin/me')

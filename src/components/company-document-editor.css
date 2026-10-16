@@ -1,3 +1,4 @@
+/* 블록 편집기 전용 배치입니다. 저장된 본문 자체의 표현은 company-document.css가 담당합니다. */
 .modal.company-editor-modal {
   width: min(1320px, calc(100% - 36px));
   padding: 24px;
@@ -474,6 +475,7 @@
   background: #f8faf4;
   border-radius: 6px;
 }
+/* 좁은 화면에서는 편집·미리보기 영역을 재배치합니다. */
 @media (max-width: 950px) {
   .doc-workbench.doc-mode-split {
     grid-template-columns: 1fr;

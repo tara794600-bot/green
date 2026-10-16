@@ -9,6 +9,7 @@ const pathFor = (a: Article) =>
   ({ practice: '/practice/', case: '/cases/', guide: '/guides/', faq: '/faq#', lawyer: '/lawyers/' })[
     a.kind
   ] + a.id
+// 공개 API와 달리 비공개 글도 불러옵니다. 한 Article 형식으로 업무 분야·사례·가이드 등을 관리합니다.
 export default function ContentManager() {
   const [articles, setArticles] = useState<Article[]>([]),
     [kind, setKind] = useState<ArticleKind>('case'),
@@ -193,6 +194,7 @@ function ContentEditor({
     [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [preview, setPreview] = useState(false)
+  // 목록 필드는 편집 중 줄바꿈 문자열로 다루고 저장할 때 빈 줄을 제외한 배열로 변환합니다.
   const [checks, setChecks] = useState(article.checks.join('\n')),
     [materials, setMaterials] = useState(article.materials.join('\n')),
     [flow, setFlow] = useState(article.flow.join('\n'))
@@ -217,6 +219,7 @@ function ContentEditor({
       setBusy(false)
     }
   }
+  // 일반 콘텐츠 이미지는 선택 즉시 업로드합니다. 업체 편집기의 저장 시 업로드 흐름과 다릅니다.
   async function upload(file: File | undefined) {
     if (!file) return
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 3 * 1024 * 1024) {

@@ -1,4 +1,5 @@
 rules_version = '2';
+// 브라우저 SDK의 직접 접근은 차단합니다. 업로드는 서버 Admin SDK, 공개 조회는 다운로드 토큰 URL을 씁니다.
 service firebase.storage {
   match /b/{bucket}/o { match /{allPaths=**} { allow read, write: if false; } }
 }

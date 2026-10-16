@@ -7,6 +7,7 @@ const server = await createServer({
   server: { host: '127.0.0.1', port: 5174, strictPort: true },
   mode: 'test',
 })
+// Vite가 .env 파일을 로드한 뒤 키를 다시 제거해야 E2E가 실제 DB·외부 전송을 사용하지 않습니다.
 for (const name of [
   'FIREBASE_SERVICE_ACCOUNT_JSON',
   'ADMIN_PASSWORD_HASH',

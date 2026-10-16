@@ -1,8 +1,8 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // All data access is mediated by the password-authenticated server API.
-    // The Admin SDK bypasses these rules; no browser has direct DB access.
+    // 브라우저의 직접 DB 접근은 차단하고 서버 API·SSR을 통해서만 데이터를 제공합니다.
+    // Admin SDK는 이 규칙을 우회하므로 관리자 권한 검사는 서버 API에서 수행해야 합니다.
     match /{document=**} { allow read, write: if false; }
   }
 }

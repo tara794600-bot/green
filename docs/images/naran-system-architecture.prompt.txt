@@ -1,0 +1,49 @@
+Use case: infographic-diagram
+Asset type: a finished raster system architecture illustration to embed in a Korean developer handover Markdown document.
+Primary request: Draw the actual architecture of the "법무법인 나란" website from the verified code facts below. The reader is the next developer. Render a precise, readable technical diagram as an image, not code, not a webpage mockup.
+Format: wide landscape approximately 2400 x 1600, white background, generous whitespace, crisp typography. Professional documentation aesthetic with dark navy headings, muted teal for application/server cards, pale blue for Firebase storage cards, pale lavender for external notifications. Flat rounded rectangles and tidy orthogonal arrows; restrained small line icons only. No 3D, perspective, decoration, stock photography, fake logos or watermark. Make Korean text large and correct, exact technical filenames legible. Use a clear visual hierarchy.
+
+Title (exact): "법무법인 나란 · 시스템 아키텍처"
+Subtitle (exact): "저장소 코드 기준 · Vercel 배포 구성"
+
+Main architecture: three vertical lanes, left to right.
+LEFT lane title "브라우저". One React client group, heading "React + TypeScript"; within it two simple stacked cards:
+1. "공개 홈페이지" / "콘텐츠 · 업체 · 상담 신청"
+2. "관리자" / "로그인 · 콘텐츠 관리 · 이미지 업로드"
+Both are the same browser application. Do not draw a database in this lane.
+
+CENTER lane title "Vercel · Node.js". Contains three clearly separated cards:
+1. top compact card "정적 파일" / "dist · JS / CSS / 이미지"
+2. middle card "서버 렌더링" / "api/render.js → server/render.mjs" / "공개 페이지 HTML · 메타정보"
+3. lower large card "서버 API" / "api/handler.js → server/handler.mjs"
+Inside the server API card show four concise functional labels in a 2-by-2 grid, these are modules in the same server, NOT independent services:
+"인증 · 요청 검증", "콘텐츠 · 상담 저장", "이미지 처리", "외부 연동".
+Small line beneath this card: "관리자 요청은 세션 검증".
+Add a small supporting card below SSR, placed within center lane where readable: "기본 콘텐츠" / "shared/content.json". Its connection should go toward SSR with a label "저장 콘텐츠와 병합".
+
+RIGHT lane title "데이터 · 외부 서비스". Four stacked cards:
+1. "Cloud Firestore" / "콘텐츠 · 상담 · 세션 · 전송 상태"
+2. "Firebase Storage" / "업로드 이미지"
+3. "Telegram Bot API" / "상담 알림"
+4. "Google Sheets API" / "상담 내역 기록"
+
+Edges, direction and labels: route neatly, no crossing through text or cards. Use exactly these main relationships:
+- Browser React client and static-file card connected, label "JS / CSS".
+- Browser React client and SSR card connected, label "페이지 요청 / HTML".
+- Browser React client and server API card connected, label "/api/* · JSON".
+- SSR to Firestore, label "콘텐츠 조회".
+- API to Firestore, label "읽기 · 저장".
+- API to Firebase Storage, label "이미지 저장".
+- API to Telegram, label "접수 저장 후 전송".
+- API to Google Sheets, label "접수 저장 후 기록".
+- Basic content card to SSR, label "저장 콘텐츠와 병합".
+No browser-to-Firestore connection. All Firestore reads/writes use server-side Firebase Admin SDK. External credentials never go to the client. The module server/store.mjs is used by SSR and API; convey this in a small unobtrusive line near the database edges "server/store.mjs · Firebase Admin SDK". The external delivery module server/integrations.mjs is called within the API request after persistent consultation storage; no queue or separate worker exists.
+Do not fabricate Redis, SQL, queues, cron, OAuth, microservices, separate admin service or separate login service.
+
+A full-width quiet bottom band titled "개발 환경과 처리 원칙" with exactly three short lines:
+"로컬 개발: Vite + 서버 API → .local/naran.json · .local/media/"
+"Firebase 키가 있으면 개발 중에도 연결된 Firebase를 사용"
+"상담은 먼저 저장 · 알림 실패 시 접수 유지 · 자동 재시도 없음"
+A small footer under band: "운영 연결 여부는 별도 확인"
+The diagram describes supported code architecture, not a claim that deployment or actual external integrations have been verified.
+Ensure clear arrowheads, aligned components, enough separation between lane headings and cards. Highest priority: architecture accuracy and text legibility.

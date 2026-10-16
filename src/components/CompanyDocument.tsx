@@ -9,6 +9,7 @@ import {
 } from '../../shared/company-document.mjs'
 import './company-document.css'
 
+// 다이어그램이 필요할 때만 브라우저에서 Mermaid를 한 번 로드하고, 로드 실패 시 재시도를 허용합니다.
 let engine: Promise<(typeof import('mermaid'))['default']> | undefined
 function diagramEngine() {
   return (engine ??= import('mermaid')
@@ -36,8 +37,10 @@ function Diagram({ source }: { source: string }) {
   const [result, setResult] = useState({ source: '', svg: '', error: '' })
   useEffect(() => {
     let active = true
+    // 입력 중 렌더링을 잠시 미루고, 이전 비동기 결과가 새 원문을 덮어쓰지 않도록 active를 확인합니다.
     const timer = window.setTimeout(async () => {
       try {
+        // 문서에서 보안 설정을 바꾸지 못하게 지시문을 막고, 생성된 SVG도 DOMPurify로 정제합니다.
         if (/%%\s*\{|^\s*---/.test(source)) throw new Error('config')
         const mermaid = await diagramEngine()
         if (!active) return
@@ -97,6 +100,7 @@ const Markdown = memo(function Markdown({ source }: { source: string }) {
   )
 })
 
+// 저장된 본문과 편집기 미리보기의 공통 렌더러입니다. blob URL은 편집기에서만 허용합니다.
 export const DocumentBlockView = memo(function DocumentBlockView({
   block,
   localImage = false,

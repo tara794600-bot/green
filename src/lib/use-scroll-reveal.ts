@@ -2,6 +2,7 @@ import { useEffect, type RefObject } from 'react'
 
 const targets = '[data-reveal], [data-reveal-group] > *'
 
+// SSR HTML은 기본적으로 보이게 두고, 브라우저가 지원할 때만 스크롤 등장 효과를 적용합니다.
 export function useScrollReveal(ref: RefObject<HTMLElement | null>, pathname: string) {
   useEffect(() => {
     const root = ref.current
@@ -72,7 +73,7 @@ export function useScrollReveal(ref: RefObject<HTMLElement | null>, pathname: st
       }
       for (const element of root!.querySelectorAll<HTMLElement>(targets)) {
         if (elements.has(element)) continue
-        // Animate the outer block once instead of stacking reveals on its children.
+        // 부모와 자식에 효과를 겹치지 않고 가장 바깥 블록에만 한 번 적용합니다.
         if (element.parentElement?.closest(targets)) continue
         elements.add(element)
         if (reducedMotion.matches || element.getBoundingClientRect().bottom <= 0) {
@@ -84,6 +85,7 @@ export function useScrollReveal(ref: RefObject<HTMLElement | null>, pathname: st
       }
     }
 
+    // 키보드로 이동한 요소는 애니메이션 대기 상태와 무관하게 즉시 표시합니다.
     function showFocused(event: FocusEvent) {
       if (!(event.target instanceof Node)) return
       for (const element of elements) {
@@ -94,7 +96,7 @@ export function useScrollReveal(ref: RefObject<HTMLElement | null>, pathname: st
       if (reducedMotion.matches) elements.forEach((element) => reveal(element, true))
     }
 
-    // Lazy routes and CMS updates can insert new cards without mounting the layout again.
+    // 지연 로딩·관리자 저장으로 레이아웃 재마운트 없이 추가된 카드도 관찰 대상에 포함합니다.
     const mutations = new MutationObserver(() => {
       if (!frame) frame = requestAnimationFrame(register)
     })

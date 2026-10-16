@@ -7,6 +7,7 @@ export default function RollingShowcase({ items }: { items: RollingCase[] }) {
     [paused, setPaused] = useState(false),
     [hover, setHover] = useState(false),
     [selected, setSelected] = useState<RollingCase | null>(null)
+  // 읽는 중인 카드가 움직이지 않도록 포커스·호버·확대·일시정지·동작 줄이기 설정을 존중합니다.
   useEffect(() => {
     if (
       paused ||

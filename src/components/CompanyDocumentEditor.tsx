@@ -83,9 +83,11 @@ export default function CompanyDocumentEditor({
   const dragging = useRef('')
   const sourceRef = useRef<HTMLTextAreaElement>(null)
   const selection = useRef({ start: 0, end: 0 })
+  // 긴 본문 미리보기보다 타이핑을 우선합니다. 저장에는 지연값이 아닌 최신 value를 사용합니다.
   const deferred = useDeferredValue(value)
   const active = value.blocks.find((b) => b.id === selected)
   const chars = value.blocks.reduce((sum, b) => sum + b.content.length + b.caption.length, 0)
+  // 문서 변경을 한곳에서 기록합니다. 새 편집은 redo 기록을 지우며 undo는 최근 40개를 유지합니다.
   function commit(next: CompanyDocument) {
     setPast((items) => [...items.slice(-39), value])
     setFuture([])
@@ -97,6 +99,7 @@ export default function CompanyDocumentEditor({
   function add(type: BlockType) {
     if (value.blocks.length >= MAX_BLOCKS) return
     const block = createBlock(type)
+    // 슬래시로 연 메뉴에서는 명령 입력용 빈 블록을 교체해 불필요한 블록이 남지 않게 합니다.
     const replacing = active?.type === 'markdown' && active.content === '/'
     const index = value.blocks.findIndex((b) => b.id === selected)
     const blocks = [...value.blocks]
@@ -134,6 +137,7 @@ export default function CompanyDocumentEditor({
     const content = active.content
     const text = content.slice(start, end) || fallback
     update(active.id, { content: content.slice(0, start) + before + text + after + content.slice(end) })
+    // React가 원문 변경을 반영한 다음 선택 영역을 복구해야 서식 버튼 사용 후에도 편집이 이어집니다.
     requestAnimationFrame(() => {
       sourceRef.current?.focus()
       sourceRef.current?.setSelectionRange(start + before.length, start + before.length + text.length)

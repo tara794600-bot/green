@@ -9,6 +9,8 @@ import PublicPages from './pages/PublicPages'
 import Consultation from './pages/Consultation'
 import Landing from './pages/Landing'
 
+// 서버에서는 브라우저 전역 객체 없이 경로와 데이터만 받아 공개 HTML을 만듭니다.
+// 공개 라우트 변경 시 App.tsx와 server/render.mjs의 경로 판정도 함께 확인합니다.
 export function render(path: string, data: PublicData) {
   return renderToString(
     <ContentContext value={data}>

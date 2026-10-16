@@ -1,6 +1,6 @@
 import { api } from './api'
 
-// Accept the reference site's 10 MB source images; optimize before the server upload.
+// 원본은 최대 10MB를 받고, 서버 요청 상한에 맞도록 브라우저에서 크기·WebP 품질을 줄입니다.
 export async function uploadImage(file: File) {
   if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type))
     throw new Error('JPG, PNG, WebP 이미지를 선택해 주세요.')
@@ -20,6 +20,7 @@ export async function uploadImage(file: File) {
     if (!context) throw new Error('이미지 미리보기를 만들지 못했습니다.')
     context.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
     let data = ''
+    // base64 문자열 길이를 기준으로 품질을 단계적으로 낮춥니다. 서버는 바이트 크기도 재검사합니다.
     for (const quality of [0.88, 0.75, 0.6, 0.45]) {
       data = canvas.toDataURL('image/webp', quality)
       if (data.length <= 4100000) break

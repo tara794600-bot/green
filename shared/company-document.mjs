@@ -3,8 +3,8 @@ import sanitizeHtml from 'sanitize-html'
 import { isImageUrl } from './company-document-schema.mjs'
 export * from './company-document-schema.mjs'
 
-// A shared allowlist keeps browser previews and server-rendered documents identical.
-// Presentation styles stay inside the article: no scripts, handlers, forms or positioning.
+// 편집기 미리보기와 SSR에서 같은 HTML 허용 목록을 사용합니다.
+// 스크립트·이벤트·자유로운 위치 지정은 제외하고 본문 표현에 필요한 스타일만 허용합니다.
 const cssColor = /^(?:#[\da-f]{3,8}|[a-z]+|rgba?\([\d.,%\s]+\)|hsla?\([\d.,%\s]+\))$/i
 const size = /^(?:0|\d{1,3}(?:\.\d+)?(?:px|em|rem|%))$/
 export function sanitizeContent(html) {
@@ -62,6 +62,7 @@ export function sanitizeContent(html) {
   })
 }
 
+// Mermaid 코드 블록만 별도 렌더러로 넘기고 나머지는 정제된 HTML 조각으로 반환합니다.
 export function markdownParts(source) {
   const parts = []
   let pending = []
@@ -74,7 +75,7 @@ export function markdownParts(source) {
     pending = []
   }
   const tokens = marked.lexer(source, { gfm: true, breaks: true })
-  // Reference links require the lexer's link table after splitting at diagram fences.
+  // 다이어그램 경계에서 토큰을 나눠도 참조형 링크가 유지되도록 링크 테이블을 이어받습니다.
   pending.links = tokens.links
   for (const token of tokens) {
     if (token.type === 'code' && token.lang?.trim() === 'mermaid') {

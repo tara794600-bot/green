@@ -1,3 +1,4 @@
+/* 관리자 공통 화면: 셸·내비게이션·폼·표. 롤링/업체/파워링크 전용 스타일은 reference.css입니다. */
 .tracking-path {
   overflow-wrap: anywhere;
   word-break: break-all;
@@ -1189,6 +1190,7 @@ td strong {
     padding: 35px;
   }
 }
+/* 태블릿·모바일 관리자 배치. 더 좁은 화면의 덮어쓰기 규칙은 아래에 둡니다. */
 @media (max-width: 950px) {
   .admin-sidebar {
     width: 190px;

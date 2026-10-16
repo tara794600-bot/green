@@ -11,6 +11,7 @@ import { hashPassword, verifyPassword } from '../server/auth.mjs'
 import sharp from 'sharp'
 import { testDocument } from './fixtures/company-document.mjs'
 
+// 인증·접수·외부 전송 상태를 실제 HTTP 핸들러로 검증합니다. 저장 파일은 개발 데이터와 분리합니다.
 const file = resolve(`.local/server-test-${randomUUID()}.json`)
 let server, base, cookie
 before(async () => {

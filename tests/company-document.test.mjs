@@ -1,3 +1,4 @@
+// 브라우저·SSR 공통 본문 변환의 허용/차단 규칙과 문서 제한을 검증합니다.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {

@@ -10,6 +10,7 @@ export const categories = [
   '부업·재테크 사기',
   '기타·잘 모르겠어요',
 ]
+// 브라우저와 별개로 서버에서 정규화·길이·동의를 검사합니다. website는 봇 탐지용 빈 필드입니다.
 export const consultationSchema = z.object({
   requestId: z.string().uuid(),
   name: z.string().trim().min(2, '성함을 2자 이상 입력해 주세요.').max(60),
@@ -35,6 +36,7 @@ export const updateSchema = z
     note: z.string().trim().min(1).max(2000).optional(),
   })
   .strict()
+// 자체 이미지 경로와 HTTPS URL만 허용합니다. 실제 업로드 파일 검사는 media.mjs에서 수행합니다.
 const safeImage = z
   .string()
   .max(1500)

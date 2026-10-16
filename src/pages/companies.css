@@ -1,3 +1,4 @@
+/* 공개 업체 목록·상세·전화 안내 화면. 관리자 업체 편집 스타일과 구분합니다. */
 .company-search {
   display: flex;
   align-items: center;

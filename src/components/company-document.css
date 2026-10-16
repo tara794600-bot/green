@@ -1,3 +1,4 @@
+/* 공개 본문과 편집기 미리보기가 공유합니다. doc-* 허용 클래스는 shared HTML 정제 규칙과 맞춥니다. */
 .company-rich-document {
   display: grid;
   gap: 20px;
@@ -236,6 +237,7 @@
     transform: translateY(-5px);
   }
 }
+/* 사용자가 동작 줄이기를 선택하면 본문 블록 애니메이션도 비활성화합니다. */
 @media (prefers-reduced-motion: reduce) {
   .doc-fade,
   .doc-pulse,

@@ -31,6 +31,7 @@ export default function Consultation() {
     [error, setError] = useState(''),
     [receipt, setReceipt] = useState<{ id: string; localPreview: boolean } | null>(null),
     [local, setLocal] = useState(false)
+  // 네트워크 재시도에도 같은 접수번호를 보내 서버의 중복 접수 방지를 사용합니다.
   const requestId = useRef(crypto.randomUUID())
   useEffect(() => {
     api<AppConfig>('/config')
@@ -57,6 +58,7 @@ export default function Consultation() {
           ...form,
           requestId: requestId.current,
           source: location.pathname + location.search,
+          // 상담 화면의 주소와 광고에서 처음 들어온 경로를 함께 전달합니다.
           ...visitFields(),
         }),
       })

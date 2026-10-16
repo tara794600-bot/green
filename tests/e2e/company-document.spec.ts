@@ -1,3 +1,4 @@
+// 본문 편집 → 저장 → 공개 상세 표시를 연결해 검증하며 스크립트 실행·브라우저 오류도 감시합니다.
 import { expect, test } from '@playwright/test'
 
 test('company document editor persists blocks, styles, diagrams, HTML and uploaded images', async ({

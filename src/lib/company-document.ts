@@ -22,6 +22,7 @@ export const defaultBlockStyle: BlockStyle = {
   borderWidth: 0,
   fontSize: 16,
 }
+// 새 블록은 독립된 ID와 스타일 객체를 가집니다. 저장 가능한 속성·범위는 shared 스키마가 기준입니다.
 export function createBlock(type: BlockType): DocumentBlock {
   return {
     id: crypto.randomUUID(),

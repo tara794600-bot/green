@@ -34,6 +34,7 @@ export function CompanyCards({ items }: { items: CompanyCase[] }) {
 export default function Companies({ id }: { id?: string }) {
   return id ? <CompanyDetail key={id} id={id} /> : <CompanyDirectory />
 }
+// 서버에서 공개 업체만 받은 뒤 검색·페이지를 URL 쿼리로 유지해 직접 공유와 새로고침을 지원합니다.
 function CompanyDirectory() {
   const { companies = [] } = useContent(),
     [params, setParams] = useSearchParams()
@@ -126,6 +127,7 @@ function CompanyDirectory() {
     </>
   )
 }
+// SSR 상세 데이터를 먼저 쓰고 API로 갱신합니다. 내부 검색에서 숨긴 업체도 직접 주소로 조회합니다.
 function CompanyDetail({ id }: { id: string }) {
   const { selectedCompany, companies = [], settings } = useContent()
   const [item, setItem] = useState<CompanyCase | null>(

@@ -15,6 +15,7 @@ import { companySchema, rollingSchema, HttpError, parse } from './validation.mjs
 import { deleteUnusedImage } from './media.mjs'
 import { documentImageUrls } from '../shared/company-document-schema.mjs'
 
+// 광고 경로는 한 단계로 제한하고 기존 공개·관리자·API 경로와 충돌하지 않도록 합니다.
 export function powerlinkPrefix() {
   const prefix = '/' + (process.env.POWERLINK_PATH_PREFIX || 'p').replace(/^\/+|\/+$/g, '') + '/'
   if (
@@ -26,6 +27,7 @@ export function powerlinkPrefix() {
     throw new HttpError(503, 'POWERLINK_PATH_PREFIX 설정을 확인해 주세요.')
   return prefix
 }
+// 개발에서는 비밀값을 최초 생성 후 저장합니다. 키가 바뀌면 기존 광고 URL도 해석할 수 없습니다.
 async function encryptionKey(create = false) {
   let secret = process.env.POWERLINK_URL_SECRET
   if (!secret && isLocal()) {
@@ -48,6 +50,7 @@ export async function decryptKeyword(token) {
   const key = await encryptionKey()
   if (!key) return ''
   try {
+    // 토큰은 IV 12바이트 + 인증 태그 16바이트 + 암호문이며, 생성부와 형식이 같아야 합니다.
     const payload = Buffer.from(token, 'base64url')
     const decipher = createDecipheriv('aes-256-gcm', key, payload.subarray(0, 12))
     decipher.setAuthTag(payload.subarray(12, 28))
@@ -72,6 +75,7 @@ export async function referenceAdmin(path, method, url, readBody, req) {
   if (method === 'GET' && !id) {
     const all = kind === 'companies' ? await allCompanies() : (await list(collection)).map(normalizeRecord)
     const query = (url.searchParams.get('q') || '').trim().toLowerCase()
+    // 전체 데이터에서 검색한 다음 페이지를 잘라 현재 페이지 밖의 결과도 검색되게 합니다.
     const filtered = all
       .filter((v) => searchable(v).includes(query))
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id))
@@ -133,6 +137,7 @@ export async function referenceAdmin(path, method, url, readBody, req) {
           : {}),
       }
     })
+    // 저장 후 참조가 사라진 이미지만 정리합니다. 정리 실패는 저장 취소 대신 경고로 반환합니다.
     const currentImages = documentImageUrls(value)
     const warnings = await Promise.all(
       previousImages.filter((url) => !currentImages.includes(url)).map(deleteUnusedImage),
@@ -159,6 +164,7 @@ export async function referenceAdmin(path, method, url, readBody, req) {
     await audit('사기업체 노출 설정 변경', id, visibility)
     return { ...normalizeRecord(value), visibility }
   }
+  // 파워링크는 관리 목록만 삭제합니다. 토큰 복호화는 목록 조회와 독립적이므로 기존 URL은 유지됩니다.
   if (method === 'DELETE' && id) {
     let old
     await mutate(collection, id, (value) => {
@@ -172,6 +178,7 @@ export async function referenceAdmin(path, method, url, readBody, req) {
   }
   throw new HttpError(405, '지원하지 않는 요청입니다.')
 }
+// 내부 검색에서 숨긴 업체도 직접 주소로 조회할 수 있으며, 노출 방식은 상세 화면이 처리합니다.
 export async function companyDetail(id) {
   if (!storageAvailable() || !/^[a-zA-Z0-9_-]{1,128}$/.test(id)) return null
   const record = await get('companyCases', id)
@@ -192,6 +199,7 @@ export async function landingData(token) {
     .slice(0, 8)
   return { token, keyword, companies }
 }
+// SSR과 브라우저 콘텐츠 API가 같은 기본 데이터와 경로별 상세 데이터를 사용하도록 모읍니다.
 export async function requestPublicData(pathname = '/') {
   const data = { ...(await publicData()), powerlinkPrefix: powerlinkPrefix() }
   if (/^\/companies\/[^/]+$/.test(pathname))
@@ -200,6 +208,7 @@ export async function requestPublicData(pathname = '/') {
     data.landing = await landingData(pathname.slice(data.powerlinkPrefix.length))
   return data
 }
+// 토큰에서 복호화한 키워드를 우선하고, 없으면 검색 매개변수와 참조 주소로 유입을 분류합니다.
 export async function attribution(fields) {
   const params = new URLSearchParams(fields.queryString)
   const token = fields.landingPath.startsWith(powerlinkPrefix())

@@ -1,3 +1,5 @@
+// 기본 콘텐츠 JSON을 재생성하는 수동 스크립트입니다. 실행하면 shared/content.json을 덮어씁니다.
+// 관리자 저장 데이터나 Firebase로의 이관을 수행하는 명령이 아닙니다.
 import { writeFileSync } from 'node:fs'
 const categories = [
   [
