@@ -27,11 +27,14 @@ import { attribution, companyDetail, landingData, referenceAdmin, requestPublicD
 
 // 업로드의 base64 오버헤드와 업체 본문 크기를 고려하되, 요청을 읽는 중에도 상한을 검사합니다.
 async function body(req) {
-  const max = req.url?.endsWith('/upload')
-    ? 4500000
-    : /^\/api\/admin\/companies(?:\/[^/?]+)?(?:\?|$)/.test(req.url || '')
-      ? 800000
-      : 64000
+  // Vercel rewrite의 쿼리와 끝 슬래시는 용량 제한 판정에서 제외합니다.
+  const path = new URL(req.url, 'http://localhost').pathname.replace(/\/$/, '')
+  const max =
+    path === '/api/admin/upload'
+      ? 4500000
+      : /^\/api\/admin\/companies(?:\/[^/]+)?$/.test(path)
+        ? 800000
+        : 64000
   if (req.body) {
     if (Buffer.byteLength(typeof req.body === 'string' ? req.body : JSON.stringify(req.body)) > max)
       throw new HttpError(413, '요청이 너무 큽니다.')

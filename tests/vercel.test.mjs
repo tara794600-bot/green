@@ -2,9 +2,11 @@ import test, { before, after } from 'node:test'
 import assert from 'node:assert/strict'
 import { createServer } from 'node:http'
 import { readFile, unlink } from 'node:fs/promises'
-import { randomUUID } from 'node:crypto'
+import { randomBytes, randomUUID } from 'node:crypto'
+import sharp from 'sharp'
 import handler from '../api/handler.js'
 import { hashPassword } from '../server/auth.mjs'
+import { testBlockStyle } from './fixtures/company-document.mjs'
 
 const config = JSON.parse(await readFile(new URL('../vercel.json', import.meta.url), 'utf8'))
 const rewrite = config.rewrites.find((rule) => rule.source === '/api/:path*')
@@ -17,7 +19,15 @@ before(async () => {
   process.env.LOCAL_DATA_FILE = file
   process.env.ADMIN_PASSWORD_HASH = hashPassword('Routing-Test-2026!')
   delete process.env.FIREBASE_SERVICE_ACCOUNT_JSON
-  server = createServer(handler)
+  server = createServer(async (req, res) => {
+    // Vercel이 JSON을 미리 파싱한 경우와 Node 스트림 요청을 모두 검증합니다.
+    if (req.headers['x-test-parsed-body']) {
+      const chunks = []
+      for await (const chunk of req) chunks.push(chunk)
+      req.body = JSON.parse(Buffer.concat(chunks).toString('utf8'))
+    }
+    return handler(req, res)
+  })
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
   base = `http://127.0.0.1:${server.address().port}`
   process.env.SITE_URL = base
@@ -80,4 +90,115 @@ test('rewrites preserve content query strings and original request URLs', async 
   const direct = await fetch(base + '/api/admin/me')
   assert.equal(direct.status, 401)
   assert.match(direct.headers.get('content-type'), /application\/json/)
+})
+
+test('company image uploads retain their size allowance through Vercel rewrites', async (t) => {
+  const login = await fetch(rewritten('/api/admin/login'), {
+    method: 'POST',
+    headers: { Origin: base, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password: 'Routing-Test-2026!' }),
+  })
+  assert.equal(login.status, 200)
+  const cookie = login.headers.get('set-cookie').split(';')[0]
+  const image = await sharp(randomBytes(256 * 256 * 3), {
+    raw: { width: 256, height: 256, channels: 3 },
+  })
+    .png()
+    .toBuffer()
+  const payload = JSON.stringify({ data: 'data:image/png;base64,' + image.toString('base64') })
+  assert(Buffer.byteLength(payload) > 64000)
+  const paths = [
+    rewritten('/api/admin/upload'),
+    rewritten('/api/admin/upload?source=company'),
+    new URL('/api/admin/upload?__route=admin%2Fupload', base),
+    new URL('/api/admin/upload/?source=company', base),
+  ]
+  for (const parsed of [false, true])
+    for (const url of paths)
+      await t.test(`${parsed ? 'parsed' : 'stream'} ${url.pathname}${url.search}`, async () => {
+        const headers = {
+          Origin: base,
+          'Content-Type': 'application/json',
+          Cookie: cookie,
+          ...(parsed ? { 'x-test-parsed-body': 'true' } : {}),
+        }
+        const response = await fetch(url, { method: 'POST', headers, body: payload })
+        const data = await response.json()
+        assert.equal(response.status, 201, data.error)
+        try {
+          const uploaded = await fetch(base + data.url)
+          assert.equal(uploaded.status, 200)
+          assert.equal(uploaded.headers.get('content-type'), 'image/webp')
+        } finally {
+          const cleanup = await fetch(rewritten('/api/admin/media'), {
+            method: 'DELETE',
+            headers,
+            body: JSON.stringify({ url: data.url }),
+          })
+          assert.equal(cleanup.status, 200)
+        }
+      })
+  await t.test('company saves retain a long Korean body and its image references', async () => {
+    const headers = { Origin: base, 'Content-Type': 'application/json', Cookie: cookie }
+    const document = {
+      version: 1,
+      blocks: [
+        ...Array.from({ length: 2 }, (_, index) => ({
+          id: `text-${index}`,
+          type: 'markdown',
+          content: '가'.repeat(15000),
+          caption: '',
+          style: testBlockStyle,
+        })),
+        {
+          id: 'body-image',
+          type: 'image',
+          content: '/images/lawyer-seo.webp',
+          caption: '본문 이미지',
+          style: testBlockStyle,
+        },
+      ],
+    }
+    const payload = JSON.stringify({
+      name: '업로드 검증 업체',
+      service: '검증',
+      description: '대표 이미지와 긴 본문 저장',
+      image: '/images/lawyer-seo.webp',
+      visibility: 'public',
+      document,
+    })
+    assert(Buffer.byteLength(payload) > 64000)
+    const response = await fetch(base + '/api/admin/companies/?source=company', {
+      method: 'POST',
+      headers,
+      body: payload,
+    })
+    const company = await response.json()
+    assert.equal(response.status, 201, company.error)
+    try {
+      const detail = await fetch(rewritten(`/api/companies/${company.id}`))
+      assert.equal(detail.status, 200)
+      const saved = await detail.json()
+      assert.equal(saved.image, '/images/lawyer-seo.webp')
+      assert.deepEqual(saved.document, document)
+    } finally {
+      const cleanup = await fetch(rewritten(`/api/admin/companies/${company.id}`), {
+        method: 'DELETE',
+        headers,
+      })
+      assert.equal(cleanup.status, 200)
+    }
+  })
+  // 쿼리가 붙어도 실제 업로드 한도와 일반 API의 더 작은 한도는 유지합니다.
+  for (const [url, data] of [
+    [rewritten('/api/admin/upload?source=company'), { data: 'a'.repeat(4500000) }],
+    [rewritten('/api/admin/media?source=company'), { url: 'a'.repeat(64000) }],
+  ]) {
+    const response = await fetch(url, {
+      method: url.searchParams.get('__route') === 'admin/media' ? 'DELETE' : 'POST',
+      headers: { Origin: base, 'Content-Type': 'application/json', Cookie: cookie },
+      body: JSON.stringify(data),
+    })
+    assert.equal(response.status, 413)
+  }
 })
