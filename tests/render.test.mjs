@@ -5,7 +5,7 @@ import { renderPage, sitemap } from '../server/render.mjs'
 import { put } from '../server/store.mjs'
 import { randomUUID, randomBytes, createCipheriv, createHash } from 'node:crypto'
 import { unlink } from 'node:fs/promises'
-import { testDocument } from './fixtures/company-document.mjs'
+import { legacyDocument, testDocument } from './fixtures/company-document.mjs'
 
 // 빌드된 SSR 번들을 사용합니다. npm run build 후 실행해 JS 실행 전 HTML·메타정보·404를 확인합니다.
 let server, base
@@ -73,10 +73,22 @@ test('company visibility is reflected in server HTML, search results, and sitema
     await put('companyCases', company.id, { ...company, document: testDocument })
     html = await (await fetch(base + '/companies/' + company.id)).text()
     assert.match(html, /<h2>상세 안내<\/h2>/)
-    assert.match(html, /class="doc-stat-value">128건<\/strong>/)
-    assert.match(html, /<strong>HTML 안내<\/strong>/)
+    assert.match(html, /<blockquote data-style="postit"><p><strong>HTML 안내<\/strong><\/p><\/blockquote>/)
+    assert.match(html, /<mark data-color="#fff3a3" style="background-color:#fff3a3;color:inherit">/)
+    assert.match(html, /<iframe src="https:\/\/www.youtube-nocookie.com\/embed\/dQw4w9WgXcQ"/)
+    assert.match(html, /href="https:\/\/fonts.googleapis.com\/css2\?family=Nanum\+Gothic/)
+    // 원본 문서는 hydration용 JSON(문자 이스케이프)에도 들어가므로 렌더링된 본문 영역만 검사합니다.
+    assert.doesNotMatch(
+      html.slice(html.indexOf('company-rich-document')),
+      /<script>alert\(1\)<\/script>|evil.example|onerror/,
+    )
+    // 이전 블록 형식 본문도 서버에서 HTML로 바꿔 표시합니다.
+    await put('companyCases', company.id, { ...company, document: legacyDocument })
+    html = await (await fetch(base + '/companies/' + company.id)).text()
+    assert.match(html, /<h2>이전 안내<\/h2>/)
+    assert.match(html, /<strong>128건<\/strong>/)
+    assert.match(html, /<strong>이전 HTML 안내<\/strong>/)
     assert.doesNotMatch(html, /<script>alert\(1\)<\/script>/)
-    assert.match(html, /다이어그램 원문/)
     await put('companyCases', company.id, { ...company, isSearchBlocked: true })
     html = await (await fetch(base + '/companies/' + company.id)).text()
     assert.match(html, /content="index, follow"/)

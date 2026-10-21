@@ -7,6 +7,7 @@ import type { CompanyCase } from '../lib/types'
 import { PageHero, EmptyState, ErrorNotice } from '../components/ui'
 import { ContactBanner } from '../components/Layout'
 import CompanyDocumentView from '../components/CompanyDocument'
+import { hasDocumentContent } from '../../shared/company-document.mjs'
 import './companies.css'
 
 export function CompanyCards({ items }: { items: CompanyCase[] }) {
@@ -235,7 +236,7 @@ function CompanyDetail({ id }: { id: string }) {
           </div>
         </div>
       </section>
-      {item.document?.blocks.length ? (
+      {item.document && hasDocumentContent(item.document) ? (
         <section className="container company-rich-section" aria-label="업체 상세 본문">
           <CompanyDocumentView document={item.document} />
         </section>

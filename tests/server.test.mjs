@@ -9,7 +9,8 @@ import { get, put, publicData } from '../server/store.mjs'
 import { deliver, sheetRow, telegramText } from '../server/integrations.mjs'
 import { hashPassword, verifyPassword } from '../server/auth.mjs'
 import sharp from 'sharp'
-import { testDocument } from './fixtures/company-document.mjs'
+import { legacyDocument, testDocument } from './fixtures/company-document.mjs'
+import { MAX_DOCUMENT_HTML } from '../shared/company-document-schema.mjs'
 
 // 인증·접수·외부 전송 상태를 실제 HTTP 핸들러로 검증합니다. 저장 파일은 개발 데이터와 분리합니다.
 const file = resolve(`.local/server-test-${randomUUID()}.json`)
@@ -199,29 +200,29 @@ test('rich company documents round-trip through the API, preserve legacy updates
   assert.deepEqual((await request(`/companies/${companyId}`)).data.document, testDocument)
   await request(`/admin/companies/${companyId}`, 'PUT', companyPayload)
   assert.deepEqual((await request(`/companies/${companyId}`)).data.document, testDocument)
-  const invalid = { ...testDocument, blocks: [...testDocument.blocks, testDocument.blocks[0]] }
-  assert.equal(
-    (await request(`/admin/companies/${companyId}`, 'PUT', { ...companyPayload, document: invalid })).response
-      .status,
-    400,
-  )
-  const long = {
-    ...testDocument,
-    blocks: Array.from({ length: 4 }, (_, i) => ({
-      ...testDocument.blocks[0],
-      id: `long-${i}`,
-      content: '한'.repeat(19000),
-    })),
-  }
+  // 이전 블록 형식으로 저장된 본문도 그대로 받아 유지합니다.
+  await request(`/admin/companies/${companyId}`, 'PUT', { ...companyPayload, document: legacyDocument })
+  assert.deepEqual((await request(`/companies/${companyId}`)).data.document, legacyDocument)
+  for (const invalid of [
+    { version: 2, html: '<figure data-type="image"><img src="blob:http://127.0.0.1/1"></figure>' },
+    { version: 2, html: '한'.repeat(MAX_DOCUMENT_HTML + 1) },
+    { ...legacyDocument, blocks: [...legacyDocument.blocks, legacyDocument.blocks[0]] },
+  ])
+    assert.equal(
+      (await request(`/admin/companies/${companyId}`, 'PUT', { ...companyPayload, document: invalid }))
+        .response.status,
+      400,
+    )
+  const long = { version: 2, html: '<p>' + '한'.repeat(MAX_DOCUMENT_HTML - 7) + '</p>' }
   assert.equal(
     (await request(`/admin/companies/${companyId}`, 'PUT', { ...companyPayload, document: long })).response
       .status,
     200,
   )
-  assert.equal((await request(`/companies/${companyId}`)).data.document.blocks[3].content.length, 19000)
+  assert.equal((await request(`/companies/${companyId}`)).data.document.html.length, MAX_DOCUMENT_HTML)
   await request(`/admin/companies/${companyId}`, 'PUT', {
     ...companyPayload,
-    document: { version: 1, blocks: [] },
+    document: { version: 2, html: '' },
   })
 })
 
@@ -233,13 +234,13 @@ test('body uploads survive cover replacement and are deleted when their final do
     data: 'data:image/png;base64,' + image.toString('base64'),
   })
   const url = upload.data.url
-  const doc = { version: 1, blocks: [{ ...testDocument.blocks[0], content: `![자료](${url})` }] }
+  const doc = { version: 2, html: `<figure data-type="image"><img src="${url}"></figure>` }
   await request(`/admin/companies/${companyId}`, 'PUT', { ...companyPayload, image: url, document: doc })
   await request(`/admin/companies/${companyId}`, 'PUT', { ...companyPayload, document: doc })
   assert.equal((await fetch(base + url)).status, 200)
   await request(`/admin/companies/${companyId}`, 'PUT', {
     ...companyPayload,
-    document: { version: 1, blocks: [] },
+    document: { version: 2, html: '<p>사진을 뺀 본문</p>' },
   })
   assert.equal((await fetch(base + url)).status, 404)
 })

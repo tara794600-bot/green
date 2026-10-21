@@ -67,7 +67,7 @@ npm run dev
 | 관리자 로그인·메뉴 | [src/pages/Admin.tsx](./src/pages/Admin.tsx) |
 | 롤링 사례·업체·파워링크 관리 | [src/pages/AdminReference.tsx](./src/pages/AdminReference.tsx) |
 | 콘텐츠·사이트 설정 관리 | [src/pages/ContentManager.tsx](./src/pages/ContentManager.tsx), [src/pages/AdminSettings.tsx](./src/pages/AdminSettings.tsx) |
-| 업체 본문 블록 편집·표시 | [src/components/CompanyDocumentEditor.tsx](./src/components/CompanyDocumentEditor.tsx), [src/components/CompanyDocument.tsx](./src/components/CompanyDocument.tsx), [shared/company-document.mjs](./shared/company-document.mjs) |
+| 업체 본문 편집기(네이버 블로그 방식)·표시 | [src/components/CompanyDocumentEditor.tsx](./src/components/CompanyDocumentEditor.tsx), [src/components/editor/](./src/components/editor/), [src/components/CompanyDocument.tsx](./src/components/CompanyDocument.tsx), [shared/company-document.mjs](./shared/company-document.mjs) |
 | API 분기·상담 저장·관리자 처리 | [server/handler.mjs](./server/handler.mjs) |
 | 인증·세션·요청 출처 검증 | [server/auth.mjs](./server/auth.mjs) |
 | Firestore·로컬 저장·기본 콘텐츠 병합 | [server/store.mjs](./server/store.mjs), [shared/content.json](./shared/content.json) |
@@ -87,6 +87,7 @@ npm run dev
 - **상담 저장과 알림:** 접수를 먼저 저장하고 Telegram·Sheets 전송 결과를 각각 기록합니다. 전송 실패가 접수 실패를 뜻하지 않습니다. 자동 재시도 스케줄러는 없으며, 인증된 `POST /api/admin/consultations/:id/retry`로 재시도합니다. Telegram은 타임아웃 전에 도착했을 수 있어 수신 내역 확인이 필요합니다.
 - **관리자 인증:** 개인 계정 없이 공유 비밀번호를 사용하며 세션은 8시간입니다. 비밀번호 교체 시 기존 세션은 무효화됩니다. 운영 비밀번호 설정은 `npm run admin:password`와 서버의 `ADMIN_PASSWORD_HASH` 등록 절차를 따릅니다.
 - **서버 전용 환경변수:** `.env.example`의 자격 증명에 `VITE_` 접두사를 붙이지 않습니다. 운영 `SITE_URL`은 실제 접속 origin과 맞춰야 하며, 운영 인증에는 HTTPS가 필요합니다.
+- **업체 상세 본문 형식:** 편집기(TipTap)는 `{ version: 2, html }`로 저장합니다. 상세페이지·미리보기는 `shared/company-document.mjs`의 `sanitizeContent`로 정제한 HTML만 표시하므로, 편집기에 새 서식이나 노드를 추가하면 이 허용 목록과 `src/components/company-document.css`도 함께 맞춰야 합니다. 이전 블록 편집기의 `{ version: 1, blocks }` 본문은 읽을 때 `documentHtml`로 HTML 변환하며, 편집기에서 다시 저장하면 version 2가 됩니다. 본문 사진은 저장 시점에 업로드하고, 본문에서 빠진 업로드 사진은 저장 후 정리합니다.
 - **개발 데이터 이관:** `.local/` 데이터는 Firebase로 자동 이관되지 않습니다. 필요한 콘텐츠와 이미지를 선별해 별도 이관 계획을 세워야 합니다.
 
 ### 최근 Vercel 호환성 수정

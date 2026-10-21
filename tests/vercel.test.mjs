@@ -6,7 +6,6 @@ import { randomBytes, randomUUID } from 'node:crypto'
 import sharp from 'sharp'
 import handler from '../api/handler.js'
 import { hashPassword } from '../server/auth.mjs'
-import { testBlockStyle } from './fixtures/company-document.mjs'
 
 const config = JSON.parse(await readFile(new URL('../vercel.json', import.meta.url), 'utf8'))
 const rewrite = config.rewrites.find((rule) => rule.source === '/api/:path*')
@@ -141,23 +140,10 @@ test('company image uploads retain their size allowance through Vercel rewrites'
   await t.test('company saves retain a long Korean body and its image references', async () => {
     const headers = { Origin: base, 'Content-Type': 'application/json', Cookie: cookie }
     const document = {
-      version: 1,
-      blocks: [
-        ...Array.from({ length: 2 }, (_, index) => ({
-          id: `text-${index}`,
-          type: 'markdown',
-          content: '가'.repeat(15000),
-          caption: '',
-          style: testBlockStyle,
-        })),
-        {
-          id: 'body-image',
-          type: 'image',
-          content: '/images/lawyer-seo.webp',
-          caption: '본문 이미지',
-          style: testBlockStyle,
-        },
-      ],
+      version: 2,
+      html:
+        `<p>${'가'.repeat(15000)}</p><p>${'나'.repeat(15000)}</p>` +
+        '<figure data-type="image" data-align="center" data-size="full"><img src="/images/lawyer-seo.webp" alt="본문 이미지"><figcaption>본문 이미지</figcaption></figure>',
     }
     const payload = JSON.stringify({
       name: '업로드 검증 업체',

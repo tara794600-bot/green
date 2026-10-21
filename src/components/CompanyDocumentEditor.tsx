@@ -1,690 +1,1251 @@
-import { useDeferredValue, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/react'
+import type { Command, Content } from '@tiptap/core'
+import { NodeSelection, TextSelection } from '@tiptap/pm/state'
+import StarterKit from '@tiptap/starter-kit'
+import { Color, FontFamily, FontSize, TextStyle } from '@tiptap/extension-text-style'
+import Highlight from '@tiptap/extension-highlight'
+import TextAlign from '@tiptap/extension-text-align'
+import { TableKit } from '@tiptap/extension-table'
+import Youtube, { isValidYoutubeUrl } from '@tiptap/extension-youtube'
+import Subscript from '@tiptap/extension-subscript'
+import Superscript from '@tiptap/extension-superscript'
+import { TaskItem, TaskList } from '@tiptap/extension-list'
+import { CharacterCount, Placeholder } from '@tiptap/extensions'
 import {
+  AlignCenter,
+  AlignJustify,
   AlignLeft,
-  ArrowDown,
-  ArrowUp,
+  AlignRight,
+  Baseline,
+  BetweenHorizontalEnd,
+  BetweenHorizontalStart,
+  BetweenVerticalEnd,
+  BetweenVerticalStart,
   Bold,
-  CheckSquare,
+  CalendarDays,
+  ChevronDown,
   Code2,
-  Copy,
-  GripVertical,
-  Hash,
-  Heading2,
+  Eye,
   Highlighter,
   ImagePlus,
   Italic,
+  LayoutTemplate,
+  Link,
   Link2,
   List,
-  Minus,
-  Network,
-  Plus,
+  ListChecks,
+  ListOrdered,
+  MapPin,
+  Maximize2,
+  Minimize2,
+  MoveHorizontal,
+  PaintBucket,
   Quote,
   Redo2,
-  Sparkles,
-  Square,
+  RemoveFormatting,
+  SeparatorHorizontal,
+  Smile,
+  Strikethrough,
+  Subscript as SubscriptIcon,
+  Superscript as SuperscriptIcon,
   Table2,
+  TableCellsMerge,
+  TableCellsSplit,
   Trash2,
-  Type,
+  Underline,
   Undo2,
+  UnfoldVertical,
+  Video,
 } from 'lucide-react'
 import {
-  MAX_BLOCKS,
-  MAX_DOCUMENT_LENGTH,
-  blockTypes,
-  type BlockStyle,
-  type BlockType,
+  MAX_DOCUMENT_HTML,
+  MAX_DOCUMENT_IMAGES,
+  documentFonts,
+  documentHtml,
+  fontStylesheet,
   type CompanyDocument,
-  type DocumentBlock,
+  type HtmlCompanyDocument,
 } from '../../shared/company-document.mjs'
 import {
-  blockLabels,
-  createBlock,
-  createTemplate,
-  defaultBlockStyle,
-  diagramExample,
+  clearDocumentDraft,
+  readDocumentDraft,
+  withoutLocalImages,
+  writeDocumentDraft,
 } from '../lib/company-document'
-import CompanyDocumentView, { DocumentBlockView } from './CompanyDocument'
+import CompanyDocumentView from './CompanyDocument'
+import { BlogFormatting, BlogGallery, BlogImage, LinkCard, Place, Schedule } from './editor/extensions'
+import { CardForm } from './editor/NodeViews'
+import {
+  cardLabels,
+  dividerStyles,
+  emojis,
+  fontSizes,
+  highlightColors,
+  letterSpacings,
+  lineHeights,
+  normalizeUrl,
+  quoteStyles,
+  symbols,
+  templates,
+  textColors,
+  type QuoteStyle,
+} from './editor/options'
 import './company-document-editor.css'
 
-const icons = {
-  markdown: Type,
-  callout: Square,
-  stat: Hash,
-  mermaid: Network,
-  html: Code2,
-  image: ImagePlus,
-  divider: Minus,
+const imageTypes = ['image/png', 'image/jpeg', 'image/webp']
+const allFonts = fontStylesheet(documentFonts.map((f) => f.family).join(' '))
+const filesEvent = 'se-image-files'
+const imageFiles = (data: DataTransfer | null) =>
+  [...(data?.files || [])].filter((f) => f.type.startsWith('image/'))
+// 붙여넣기·끌어다 놓기로 들어온 사진은 편집기 바깥으로 이벤트를 올려 사진 버튼과 같은 흐름으로 처리합니다.
+const sendFiles = (dom: HTMLElement, files: File[]) =>
+  dom.dispatchEvent(new CustomEvent(filesEvent, { detail: files, bubbles: true }))
+const extensions = [
+  StarterKit.configure({
+    heading: { levels: [1, 2, 3] },
+    link: {
+      openOnClick: false,
+      autolink: true,
+      defaultProtocol: 'https',
+      HTMLAttributes: { target: '_blank', rel: 'noopener noreferrer' },
+    },
+    dropcursor: { color: '#59754a', width: 2 },
+  }),
+  TextStyle,
+  Color,
+  FontFamily,
+  FontSize,
+  Highlight.configure({ multicolor: true }),
+  TextAlign.configure({
+    types: ['heading', 'paragraph'],
+    alignments: ['left', 'center', 'right', 'justify'],
+  }),
+  Subscript,
+  Superscript,
+  TaskList,
+  TaskItem.configure({ nested: true }),
+  TableKit.configure({ table: { resizable: true, renderWrapper: true } }),
+  Youtube.configure({ nocookie: true, width: 640, height: 360 }),
+  Placeholder.configure({ placeholder: '내용을 입력하세요. 사진은 끌어다 놓거나 붙여넣어도 됩니다.' }),
+  CharacterCount,
+  BlogFormatting,
+  BlogImage,
+  BlogGallery,
+  LinkCard,
+  Place,
+  Schedule,
+]
+// 선택한 사진·카드 위에 새 요소를 넣으면 기존 요소가 지워지므로, 먼저 그 뒤에 빈 줄을 만들어 커서를 옮깁니다.
+const leaveSelectedNode: Command = ({ tr, state }) => {
+  if (!(tr.selection instanceof NodeSelection)) return true
+  const pos = tr.selection.to
+  const next = tr.doc.resolve(pos).nodeAfter
+  // 바로 뒤에 빈 줄이 있으면 그 줄을 써서 빈 줄이 쌓이지 않게 합니다.
+  if (!next?.isTextblock || next.content.size) tr.insert(pos, state.schema.nodes.paragraph.create())
+  tr.setSelection(TextSelection.create(tr.doc, pos + 1))
+  return true
 }
-const help = {
-  markdown: '제목, 목록, 표, 체크리스트와 링크를 마크다운으로 작성하세요.',
-  callout: '중요한 내용을 박스에 담으세요. 마크다운과 HTML을 함께 사용할 수 있습니다.',
-  stat: '숫자와 단위를 입력하고, 아래에 의미나 기준일을 적어 주세요.',
-  mermaid: 'Mermaid로 흐름도, 순서도, 시퀀스 등을 그리세요. style 구문으로 노드 색상을 바꿀 수 있습니다.',
-  html: 'HTML 태그와 인라인 스타일을 사용할 수 있습니다. script, iframe, 이벤트 실행 코드는 제외됩니다.',
-  image: '본문에 필요한 이미지를 추가하세요. 캡션은 이미지 대체 텍스트로도 사용됩니다.',
-  divider: '문단 사이를 구분하는 선입니다. 강조 색상으로 선 색을 바꿀 수 있습니다.',
+// 사진·구분선 같은 블록을 넣은 뒤에는 다음 줄로 커서를 옮겨 바로 이어 쓸 수 있게 합니다.
+const continueAfterNode: Command = ({ tr, state }) => {
+  if (!(tr.selection instanceof NodeSelection)) return true
+  const pos = tr.selection.to
+  if (!tr.doc.resolve(pos).nodeAfter?.isTextblock) tr.insert(pos, state.schema.nodes.paragraph.create())
+  tr.setSelection(TextSelection.create(tr.doc, pos + 1))
+  return true
+}
+function imageCount(editor: Editor) {
+  let count = 0
+  editor.state.doc.descendants((node) => {
+    if (node.type.name === 'image') count += 1
+    if (node.type.name === 'gallery') count += node.attrs.images.length
+  })
+  return count
+}
+const time = (value: number) =>
+  new Intl.DateTimeFormat('ko-KR', {
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(value)
+
+function ToolButton({
+  label,
+  active,
+  disabled,
+  onClick,
+  children,
+  className = '',
+}: {
+  label: string
+  active?: boolean
+  disabled?: boolean
+  onClick: () => void
+  children: ReactNode
+  className?: string
+}) {
+  return (
+    <button
+      type="button"
+      className={`se-tool ${active ? 'is-active' : ''} ${className}`}
+      title={label}
+      aria-label={label}
+      aria-pressed={active}
+      disabled={disabled}
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={onClick}
+    >
+      {children}
+    </button>
+  )
+}
+
+// 툴바 펼침 메뉴입니다. 버튼은 편집기 포커스를 빼앗지 않아 선택한 글자에 바로 서식을 적용합니다.
+function Dropdown({
+  title,
+  button,
+  className = '',
+  align,
+  children,
+}: {
+  title: string
+  button: ReactNode
+  className?: string
+  align?: 'end'
+  children: (close: () => void) => ReactNode
+}) {
+  const [open, setOpen] = useState(false)
+  const root = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!open) return
+    const outside = (e: PointerEvent) => {
+      if (!root.current?.contains(e.target as Node)) setOpen(false)
+    }
+    // 메뉴만 닫고 관리자 창은 그대로 둡니다.
+    const escape = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      e.preventDefault()
+      e.stopPropagation()
+      setOpen(false)
+    }
+    document.addEventListener('pointerdown', outside)
+    document.addEventListener('keydown', escape, true)
+    return () => {
+      document.removeEventListener('pointerdown', outside)
+      document.removeEventListener('keydown', escape, true)
+    }
+  }, [open])
+  return (
+    <div className={`se-dropdown ${className}`} ref={root}>
+      <button
+        type="button"
+        className={`se-tool ${open ? 'is-open' : ''}`}
+        title={title}
+        aria-label={title}
+        aria-expanded={open}
+        aria-haspopup="true"
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => setOpen((v) => !v)}
+      >
+        {button}
+        <ChevronDown size={11} className="se-caret" />
+      </button>
+      {open && (
+        <div className={`se-popover ${align === 'end' ? 'is-end' : ''}`} aria-label={title}>
+          {children(() => setOpen(false))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function Palette({
+  rows,
+  value,
+  resetLabel,
+  onPick,
+}: {
+  rows: string[][]
+  value: string
+  resetLabel: string
+  onPick: (color: string | null) => void
+}) {
+  return (
+    <div className="se-palette">
+      {rows.map((row, i) => (
+        <div key={i}>
+          {row.map((color) => (
+            <button
+              type="button"
+              key={color}
+              className={value.toLowerCase() === color ? 'is-active' : ''}
+              style={{ background: color }}
+              title={color}
+              aria-label={`색상 ${color}`}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => onPick(color)}
+            />
+          ))}
+        </div>
+      ))}
+      <div className="se-palette-foot">
+        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onPick(null)}>
+          {resetLabel}
+        </button>
+        <label>
+          직접 선택
+          <input
+            type="color"
+            aria-label="직접 색상 선택"
+            value={/^#[\da-f]{6}$/i.test(value) ? value : '#000000'}
+            onChange={(e) => onPick(e.target.value)}
+          />
+        </label>
+      </div>
+    </div>
+  )
+}
+
+function OptionList<T extends string>({
+  options,
+  value,
+  onPick,
+  render,
+}: {
+  options: readonly (readonly [T, string])[]
+  value: string
+  onPick: (value: T) => void
+  render?: (value: T, label: string) => ReactNode
+}) {
+  return (
+    <div className="se-options" role="menu">
+      {options.map(([key, label]) => (
+        <button
+          type="button"
+          role="menuitemradio"
+          aria-checked={value === key}
+          key={key || 'default'}
+          className={value === key ? 'is-active' : ''}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => onPick(key)}
+        >
+          {render ? render(key, label) : label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+// 짧은 주소 입력 창입니다. 엔터는 바깥 저장 폼을 제출하지 않고 이 창의 적용 버튼으로 처리합니다.
+function UrlForm({
+  label,
+  initial = '',
+  placeholder,
+  submitLabel,
+  onSubmit,
+  extra,
+}: {
+  label: string
+  initial?: string
+  placeholder: string
+  submitLabel: string
+  onSubmit: (url: string) => string | void
+  extra?: ReactNode
+}) {
+  const [url, setUrl] = useState(initial)
+  const [error, setError] = useState('')
+  const submit = () => setError(onSubmit(url.trim()) || '')
+  return (
+    <div
+      className="se-form"
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault()
+          submit()
+        }
+      }}
+    >
+      <label>
+        {label}
+        <input autoFocus value={url} placeholder={placeholder} onChange={(e) => setUrl(e.target.value)} />
+      </label>
+      {error && (
+        <p className="se-form-error" role="alert">
+          {error}
+        </p>
+      )}
+      <div className="se-form-actions">
+        {extra}
+        <button type="button" className="primary" onClick={submit}>
+          {submitLabel}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function TablePicker({ onPick }: { onPick: (rows: number, cols: number) => void }) {
+  const [hover, setHover] = useState({ rows: 3, cols: 3 })
+  return (
+    <div className="se-table-picker">
+      <div onMouseLeave={() => setHover({ rows: 3, cols: 3 })}>
+        {Array.from({ length: 48 }, (_, i) => {
+          const rows = Math.floor(i / 8) + 1,
+            cols = (i % 8) + 1
+          return (
+            <button
+              type="button"
+              key={i}
+              aria-label={`${rows}행 ${cols}열 표 넣기`}
+              className={rows <= hover.rows && cols <= hover.cols ? 'is-active' : ''}
+              onMouseDown={(e) => e.preventDefault()}
+              onMouseEnter={() => setHover({ rows, cols })}
+              onFocus={() => setHover({ rows, cols })}
+              onClick={() => onPick(rows, cols)}
+            />
+          )
+        })}
+      </div>
+      <p>
+        {hover.rows} × {hover.cols} 표
+      </p>
+    </div>
+  )
+}
+
+function CharacterPicker({ onPick }: { onPick: (text: string) => void }) {
+  const [tab, setTab] = useState<'emoji' | 'symbol'>('emoji')
+  return (
+    <div className="se-characters">
+      <div className="se-tabs" role="tablist">
+        {(
+          [
+            ['emoji', '이모지'],
+            ['symbol', '특수문자'],
+          ] as const
+        ).map(([key, label]) => (
+          <button
+            type="button"
+            role="tab"
+            key={key}
+            aria-selected={tab === key}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => setTab(key)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <div className="se-character-grid">
+        {(tab === 'emoji' ? emojis : symbols).map((char) => (
+          <button
+            type="button"
+            key={char}
+            aria-label={`${char} 넣기`}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => onPick(char)}
+          >
+            {char}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 export default function CompanyDocumentEditor({
   value,
   onChange,
   onImageFile,
+  draftKey,
 }: {
   value: CompanyDocument
-  onChange: (value: CompanyDocument) => void
+  onChange: (value: HtmlCompanyDocument) => void
   onImageFile: (file: File) => string
+  draftKey: string
 }) {
-  const [selected, setSelected] = useState(value.blocks[0]?.id || '')
-  const [mode, setMode] = useState<'edit' | 'split' | 'preview'>('split')
-  const [menu, setMenu] = useState(false)
-  const [past, setPast] = useState<CompanyDocument[]>([])
-  const [future, setFuture] = useState<CompanyDocument[]>([])
+  // 이전 블록 형식 본문도 HTML로 바꿔 엽니다. 이후 변경은 편집기가 상위 상태로 전달합니다.
+  const [initialHtml] = useState(() => documentHtml(value))
   const [notice, setNotice] = useState('')
-  const dragging = useRef('')
-  const sourceRef = useRef<HTMLTextAreaElement>(null)
-  const selection = useRef({ start: 0, end: 0 })
-  // 긴 본문 미리보기보다 타이핑을 우선합니다. 저장에는 지연값이 아닌 최신 value를 사용합니다.
-  const deferred = useDeferredValue(value)
-  const active = value.blocks.find((b) => b.id === selected)
-  const chars = value.blocks.reduce((sum, b) => sum + b.content.length + b.caption.length, 0)
-  // 문서 변경을 한곳에서 기록합니다. 새 편집은 redo 기록을 지우며 undo는 최근 40개를 유지합니다.
-  function commit(next: CompanyDocument) {
-    setPast((items) => [...items.slice(-39), value])
-    setFuture([])
-    onChange(next)
+  const [pending, setPending] = useState<string[]>([])
+  const [preview, setPreview] = useState<{ mode: 'pc' | 'mobile'; html: string } | null>(null)
+  const [fullscreen, setFullscreen] = useState(false)
+  const [draft, setDraft] = useState(() => {
+    const saved = readDocumentDraft(draftKey)
+    return saved && saved.html !== initialHtml ? saved : null
+  })
+  const [savedAt, setSavedAt] = useState(0)
+  const [htmlLength, setHtmlLength] = useState(initialHtml.length)
+  const root = useRef<HTMLElement>(null)
+  const fileInput = useRef<HTMLInputElement>(null)
+  const draftTimer = useRef(0)
+  const latest = useRef({ onChange, draftKey })
+  useEffect(() => {
+    latest.current = { onChange, draftKey }
+  })
+  const editor = useEditor({
+    extensions,
+    content: initialHtml,
+    editorProps: {
+      attributes: { class: 'se-content', 'aria-label': '본문 입력', spellcheck: 'true' },
+      handlePaste: (view, event) => {
+        const files = imageFiles(event.clipboardData)
+        // 웹페이지에서 복사한 글과 사진은 HTML로 붙여넣고, 캡처처럼 파일만 있을 때 사진으로 넣습니다.
+        if (!files.length || event.clipboardData?.getData('text/html')) return false
+        sendFiles(view.dom, files)
+        return true
+      },
+      handleDrop: (view, event, _slice, moved) => {
+        const files = imageFiles(event.dataTransfer)
+        if (moved || !files.length) return false
+        event.preventDefault()
+        const at = view.posAtCoords({ left: event.clientX, top: event.clientY })
+        if (at) view.dispatch(view.state.tr.setSelection(TextSelection.near(view.state.doc.resolve(at.pos))))
+        sendFiles(view.dom, files)
+        return true
+      },
+    },
+    onUpdate: ({ editor }) => {
+      const html = editor.isEmpty ? '' : editor.getHTML()
+      setHtmlLength(html.length)
+      latest.current.onChange({ version: 2, html })
+      window.clearTimeout(draftTimer.current)
+      draftTimer.current = window.setTimeout(() => {
+        if (writeDocumentDraft(latest.current.draftKey, html)) setSavedAt(Date.now())
+      }, 1000)
+    },
+  })
+  useEffect(() => () => window.clearTimeout(draftTimer.current), [])
+  const state = useEditorState({
+    editor,
+    selector: ({ editor: e }) => {
+      const text = e.getAttributes('textStyle')
+      return {
+        heading: ([1, 2, 3] as const).find((level) => e.isActive('heading', { level })) ?? 0,
+        bold: e.isActive('bold'),
+        italic: e.isActive('italic'),
+        underline: e.isActive('underline'),
+        strike: e.isActive('strike'),
+        superscript: e.isActive('superscript'),
+        subscript: e.isActive('subscript'),
+        fontFamily: String(text.fontFamily || ''),
+        fontSize: String(text.fontSize || ''),
+        color: String(text.color || ''),
+        letterSpacing: String(text.letterSpacing || ''),
+        highlight: String(e.getAttributes('highlight').color || ''),
+        align: (['center', 'right', 'justify'] as const).find((a) => e.isActive({ textAlign: a })) ?? 'left',
+        lineHeight: String(
+          e.getAttributes('paragraph').lineHeight || e.getAttributes('heading').lineHeight || '',
+        ),
+        quote: e.isActive('blockquote') ? String(e.getAttributes('blockquote').variant) : '',
+        bulletList: e.isActive('bulletList'),
+        orderedList: e.isActive('orderedList'),
+        taskList: e.isActive('taskList'),
+        codeBlock: e.isActive('codeBlock'),
+        link: String(e.getAttributes('link').href || ''),
+        table: e.isActive('table'),
+        cellBackground: String(
+          e.getAttributes('tableCell').background || e.getAttributes('tableHeader').background || '',
+        ),
+        canUndo: e.can().undo(),
+        canRedo: e.can().redo(),
+        // 개발 모드에서 편집기를 다시 만드는 순간에는 저장소가 비어 있을 수 있습니다.
+        characters: e.storage.characterCount?.characters() ?? 0,
+        withoutSpaces: e.state.doc.textContent.replace(/\s/g, '').length,
+      }
+    },
+  })
+
+  function addFiles(files: File[]) {
+    const valid = files.filter((f) => imageTypes.includes(f.type) && f.size <= 10 * 1024 * 1024)
+    const room = Math.max(0, MAX_DOCUMENT_IMAGES - imageCount(editor))
+    const accepted = valid.slice(0, room)
+    setNotice(
+      [
+        valid.length < files.length && 'JPG · PNG · WebP 형식의 10MB 이하 사진만 넣을 수 있습니다.',
+        accepted.length < valid.length && `본문 사진은 최대 ${MAX_DOCUMENT_IMAGES}장까지 넣을 수 있습니다.`,
+      ]
+        .filter(Boolean)
+        .join(' '),
+    )
+    const urls = accepted.map(onImageFile)
+    if (urls.length === 1) insertImages(urls, 'single')
+    else if (urls.length) setPending(urls)
   }
-  function update(id: string, patch: Partial<DocumentBlock>) {
-    commit({ ...value, blocks: value.blocks.map((b) => (b.id === id ? { ...b, ...patch } : b)) })
+  const handleFiles = useRef(addFiles)
+  useEffect(() => {
+    handleFiles.current = addFiles
+  })
+  useEffect(() => {
+    const section = root.current
+    const listener = (e: Event) => handleFiles.current((e as CustomEvent<File[]>).detail)
+    section?.addEventListener(filesEvent, listener)
+    return () => section?.removeEventListener(filesEvent, listener)
+  }, [])
+  function insertImages(urls: string[], layout: 'single' | 'collage' | 'slide') {
+    insert(
+      layout === 'single'
+        ? urls.map((src) => ({ type: 'image', attrs: { src } }))
+        : { type: 'gallery', attrs: { layout, images: urls.map((src) => ({ src, alt: '' })) } },
+    )
+    setPending([])
   }
-  function add(type: BlockType) {
-    if (value.blocks.length >= MAX_BLOCKS) return
-    const block = createBlock(type)
-    // 슬래시로 연 메뉴에서는 명령 입력용 빈 블록을 교체해 불필요한 블록이 남지 않게 합니다.
-    const replacing = active?.type === 'markdown' && active.content === '/'
-    const index = value.blocks.findIndex((b) => b.id === selected)
-    const blocks = [...value.blocks]
-    if (replacing) blocks.splice(index, 1, block)
-    else blocks.splice(index < 0 ? blocks.length : index + 1, 0, block)
-    commit({ ...value, blocks })
-    setSelected(block.id)
-    setMenu(false)
-    setNotice(`${blockLabels[type]} 블록을 추가했습니다.`)
+  function applyQuote(variant: QuoteStyle) {
+    const chain = editor.chain().focus()
+    if (state.quote === variant) chain.unsetBlockquote().run()
+    else if (state.quote) chain.updateAttributes('blockquote', { variant }).run()
+    else chain.setBlockquote().updateAttributes('blockquote', { variant }).run()
   }
-  function move(from: number, to: number) {
-    if (to < 0 || to >= value.blocks.length || from === to) return
-    const blocks = [...value.blocks]
-    const [block] = blocks.splice(from, 1)
-    blocks.splice(to, 0, block)
-    commit({ ...value, blocks })
-    setNotice(`${to + 1}번째 위치로 이동했습니다.`)
+  function insert(content: Content) {
+    editor.chain().focus().command(leaveSelectedNode).insertContent(content).command(continueAfterNode).run()
   }
-  function undo() {
-    const previous = past.at(-1)
-    if (!previous) return
-    setFuture((items) => [value, ...items])
-    setPast((items) => items.slice(0, -1))
-    onChange(previous)
+  function setLink(input: string) {
+    const href = normalizeUrl(input, { contact: true })
+    if (!href) return 'http(s) 주소, mailto: 또는 tel: 주소를 입력해 주세요.'
+    if (editor.state.selection.empty && !state.link)
+      editor
+        .chain()
+        .focus()
+        .command(leaveSelectedNode)
+        .insertContent({ type: 'text', text: input, marks: [{ type: 'link', attrs: { href } }] })
+        .run()
+    else editor.chain().focus().extendMarkRange('link').setLink({ href }).run()
   }
-  function redo() {
-    if (!future.length) return
-    setPast((items) => [...items, value])
-    onChange(future[0])
-    setFuture((items) => items.slice(1))
-  }
-  function insert(before: string, after = '', fallback = '텍스트') {
-    if (!active) return
-    const { start, end } = selection.current
-    const content = active.content
-    const text = content.slice(start, end) || fallback
-    update(active.id, { content: content.slice(0, start) + before + text + after + content.slice(end) })
-    // React가 원문 변경을 반영한 다음 선택 영역을 복구해야 서식 버튼 사용 후에도 편집이 이어집니다.
-    requestAnimationFrame(() => {
-      sourceRef.current?.focus()
-      sourceRef.current?.setSelectionRange(start + before.length, start + before.length + text.length)
-    })
-  }
-  function renderMenu() {
-    return (
-      <div className="doc-add-menu" aria-label="블록 종류">
-        {blockTypes.map((type) => {
-          const Icon = icons[type]
-          return (
-            <button
-              type="button"
-              key={type}
-              disabled={value.blocks.length >= MAX_BLOCKS}
-              onClick={() => add(type)}
-            >
-              <Icon size={17} />
-              <span>{blockLabels[type]}</span>
-            </button>
-          )
-        })}
-      </div>
+  function restoreDraft() {
+    if (!draft) return
+    const { html, removed } = withoutLocalImages(draft.html)
+    editor.commands.setContent(html, { emitUpdate: true })
+    setDraft(null)
+    setNotice(
+      removed
+        ? `임시저장한 글을 불러왔습니다. 업로드 전이던 사진 ${removed}장은 다시 넣어 주세요.`
+        : '임시저장한 글을 불러왔습니다.',
     )
   }
+
+  const run = () => editor.chain().focus()
+  const fontLabel = documentFonts.find((f) => state.fontFamily.includes(f.family))?.label || '기본서체'
+  const AlignIcon =
+    { center: AlignCenter, right: AlignRight, justify: AlignJustify }[state.align as string] || AlignLeft
+  const overLimit = htmlLength > MAX_DOCUMENT_HTML
   return (
-    <section className="document-editor" aria-label="상세 본문 편집기">
-      <div className="document-editor-heading">
+    <section
+      ref={root}
+      className={`se-editor ${fullscreen ? 'is-fullscreen' : ''}`}
+      aria-label="상세 본문 편집기"
+      // 편집 중 Esc로 관리자 창이 닫혀 작성 내용을 잃지 않게 합니다.
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') e.preventDefault()
+      }}
+    >
+      <link rel="stylesheet" href={allFonts} precedence="default" />
+      <div className="se-head">
         <div>
-          <span className="document-editor-kicker">DOCUMENT STUDIO</span>
+          <span className="se-kicker">SMART EDITOR</span>
           <h3>상세 본문</h3>
-          <p>블록을 쌓아, 읽기 쉬운 안내를 만들어 보세요.</p>
+          <p>사진, 인용구, 글자 색과 형광펜으로 읽기 쉬운 안내를 작성하세요.</p>
         </div>
-        <span className="doc-block-count">
-          {value.blocks.length} / {MAX_BLOCKS} 블록
-        </span>
+        <div className="se-head-actions">
+          <button
+            type="button"
+            className="se-head-button"
+            aria-pressed={Boolean(preview)}
+            onClick={() => setPreview(preview ? null : { mode: 'pc', html: editor.getHTML() })}
+          >
+            <Eye size={15} />
+            {preview ? '편집으로 돌아가기' : '미리보기'}
+          </button>
+          <button type="button" className="se-head-button" onClick={() => setFullscreen((v) => !v)}>
+            {fullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+            {fullscreen ? '창 크기로' : '넓게 쓰기'}
+          </button>
+        </div>
       </div>
-      <div className="doc-editor-toolbar">
-        <div className="doc-add-wrap">
-          <button
-            type="button"
-            className="doc-tool-button primary"
-            aria-expanded={menu}
-            onClick={() => setMenu(!menu)}
-            disabled={value.blocks.length >= MAX_BLOCKS}
-          >
-            <Plus size={16} />
-            블록 추가
-          </button>
-          {menu && renderMenu()}
-        </div>
-        <div className="doc-history">
-          <button
-            type="button"
-            className="doc-tool-icon"
-            aria-label="본문 실행 취소"
-            title="실행 취소"
-            disabled={!past.length}
-            onClick={undo}
-          >
-            <Undo2 size={17} />
+      {draft && (
+        <div className="se-draft" role="status">
+          <span>{time(draft.savedAt)}에 임시저장한 글이 있습니다.</span>
+          <button type="button" onClick={restoreDraft}>
+            불러오기
           </button>
           <button
             type="button"
-            className="doc-tool-icon"
-            aria-label="본문 다시 실행"
-            title="다시 실행"
-            disabled={!future.length}
-            onClick={redo}
+            onClick={() => {
+              clearDocumentDraft(draftKey)
+              setDraft(null)
+            }}
           >
-            <Redo2 size={17} />
+            삭제
           </button>
         </div>
-        <div className="doc-mode-switch" aria-label="본문 보기 방식">
+      )}
+      <div className="se-toolbar" role="toolbar" aria-label="본문 서식" hidden={Boolean(preview)}>
+        <div className="se-components">
+          <ToolButton label="사진" className="se-component" onClick={() => fileInput.current?.click()}>
+            <ImagePlus size={20} />
+            <span>사진</span>
+          </ToolButton>
+          <Dropdown
+            title="동영상"
+            className="se-component"
+            button={
+              <>
+                <Video size={20} />
+                <span>동영상</span>
+              </>
+            }
+          >
+            {(close) => (
+              <UrlForm
+                label="YouTube 주소"
+                placeholder="https://www.youtube.com/watch?v=…"
+                submitLabel="동영상 넣기"
+                onSubmit={(src) => {
+                  if (!isValidYoutubeUrl(src)) return 'YouTube 동영상 주소를 확인해 주세요.'
+                  run().command(leaveSelectedNode).setYoutubeVideo({ src }).command(continueAfterNode).run()
+                  close()
+                }}
+              />
+            )}
+          </Dropdown>
+          <Dropdown
+            title="인용구"
+            className="se-component"
+            button={
+              <>
+                <Quote size={20} />
+                <span>인용구</span>
+              </>
+            }
+          >
+            {(close) => (
+              <OptionList
+                options={quoteStyles}
+                value={state.quote}
+                onPick={(variant) => {
+                  applyQuote(variant)
+                  close()
+                }}
+                render={(key, label) => (
+                  <>
+                    <span className="se-swatch-quote" data-style={key} aria-hidden="true" />
+                    {label}
+                  </>
+                )}
+              />
+            )}
+          </Dropdown>
+          <Dropdown
+            title="구분선"
+            className="se-component"
+            button={
+              <>
+                <SeparatorHorizontal size={20} />
+                <span>구분선</span>
+              </>
+            }
+          >
+            {(close) => (
+              <OptionList
+                options={dividerStyles}
+                value=""
+                onPick={(variant) => {
+                  insert({ type: 'horizontalRule', attrs: { variant } })
+                  close()
+                }}
+                render={(key, label) => (
+                  <span className="se-swatch-divider se-content">
+                    <hr data-style={key} aria-hidden="true" />
+                    <small>{label}</small>
+                  </span>
+                )}
+              />
+            )}
+          </Dropdown>
           {(
             [
-              ['edit', '편집'],
-              ['split', '나란히 보기'],
-              ['preview', '미리보기'],
+              ['place', MapPin],
+              ['linkCard', Link2],
+              ['schedule', CalendarDays],
             ] as const
-          ).map(([key, label]) => (
-            <button type="button" key={key} aria-pressed={mode === key} onClick={() => setMode(key)}>
-              {label}
-            </button>
+          ).map(([type, Icon]) => (
+            <Dropdown
+              key={type}
+              title={cardLabels[type]}
+              className="se-component"
+              button={
+                <>
+                  <Icon size={20} />
+                  <span>{cardLabels[type]}</span>
+                </>
+              }
+            >
+              {(close) => (
+                <CardForm
+                  type={type}
+                  submitLabel={`${cardLabels[type]} 넣기`}
+                  onCancel={close}
+                  onSubmit={(attrs) => {
+                    insert({ type, attrs })
+                    close()
+                  }}
+                />
+              )}
+            </Dropdown>
           ))}
-        </div>
-      </div>
-      <div className={`doc-workbench doc-mode-${mode}`}>
-        {mode !== 'preview' && (
-          <div className="doc-edit-canvas">
-            {!value.blocks.length && (
-              <div className="doc-editor-empty">
-                <span>
-                  <AlignLeft size={30} strokeWidth={1.2} />
-                </span>
-                <h4>빈 페이지에서 시작하세요</h4>
-                <p>
-                  텍스트부터 이미지, 숫자와 다이어그램까지.
-                  <br />
-                  필요한 블록을 자유롭게 추가할 수 있습니다.
-                </p>
-                <div>
-                  <button type="button" className="doc-tool-button primary" onClick={() => add('markdown')}>
-                    <Plus size={15} />첫 블록 쓰기
-                  </button>
+          <Dropdown
+            title="표"
+            className="se-component"
+            button={
+              <>
+                <Table2 size={20} />
+                <span>표</span>
+              </>
+            }
+          >
+            {(close) => (
+              <TablePicker
+                onPick={(rows, cols) => {
+                  run().command(leaveSelectedNode).insertTable({ rows, cols, withHeaderRow: true }).run()
+                  close()
+                }}
+              />
+            )}
+          </Dropdown>
+          <ToolButton
+            label="소스코드"
+            className="se-component"
+            active={state.codeBlock}
+            onClick={() => run().toggleCodeBlock().run()}
+          >
+            <Code2 size={20} />
+            <span>소스코드</span>
+          </ToolButton>
+          <Dropdown
+            title="이모티콘"
+            className="se-component"
+            button={
+              <>
+                <Smile size={20} />
+                <span>이모티콘</span>
+              </>
+            }
+          >
+            {() => (
+              <CharacterPicker
+                onPick={(char) => run().command(leaveSelectedNode).insertContent(char).run()}
+              />
+            )}
+          </Dropdown>
+          <Dropdown
+            title="템플릿"
+            className="se-component"
+            align="end"
+            button={
+              <>
+                <LayoutTemplate size={20} />
+                <span>템플릿</span>
+              </>
+            }
+          >
+            {(close) => (
+              <div className="se-templates">
+                {templates.map((t) => (
                   <button
                     type="button"
-                    className="doc-tool-button"
+                    key={t.name}
+                    onMouseDown={(e) => e.preventDefault()}
                     onClick={() => {
-                      const next = createTemplate()
-                      commit(next)
-                      setSelected(next.blocks[0].id)
+                      if (editor.isEmpty)
+                        editor.chain().setContent(t.html, { emitUpdate: true }).focus('end').run()
+                      else insert(t.html)
+                      close()
                     }}
                   >
-                    <Sparkles size={15} />
-                    안내 템플릿
+                    <strong>{t.name}</strong>
+                    <span>{t.description}</span>
                   </button>
-                </div>
+                ))}
               </div>
             )}
-            {value.blocks.map((block, index) => {
-              const Icon = icons[block.type]
-              const editing = block.id === selected
-              return (
-                <div
-                  key={block.id}
-                  className={`doc-editor-block ${editing ? 'is-selected' : ''}`}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={(e) => {
-                    e.preventDefault()
-                    const from = value.blocks.findIndex((b) => b.id === dragging.current)
-                    if (from >= 0) move(from, index)
-                    dragging.current = ''
-                  }}
-                >
-                  <div className="doc-block-bar">
+          </Dropdown>
+        </div>
+        <div className="se-properties">
+          <Dropdown
+            title="문단 서식"
+            button={<span className="se-label">{state.heading ? `제목 ${state.heading}` : '본문'}</span>}
+          >
+            {(close) => (
+              <OptionList
+                options={[
+                  ['0', '본문'],
+                  ['1', '제목 1'],
+                  ['2', '제목 2'],
+                  ['3', '제목 3'],
+                ]}
+                value={String(state.heading)}
+                render={(key, label) => <span className={`se-heading-option h${key}`}>{label}</span>}
+                onPick={(key) => {
+                  if (key === '0') run().setParagraph().run()
+                  else
+                    run()
+                      .setHeading({ level: Number(key) as 1 | 2 | 3 })
+                      .run()
+                  close()
+                }}
+              />
+            )}
+          </Dropdown>
+          <Dropdown title="글꼴" button={<span className="se-label se-font-label">{fontLabel}</span>}>
+            {(close) => (
+              <OptionList
+                options={[
+                  ['', '기본서체'],
+                  ...documentFonts.map((f) => [`'${f.family}', ${f.fallback}`, f.label] as const),
+                ]}
+                value={documentFonts.find((f) => state.fontFamily.includes(f.family)) ? state.fontFamily : ''}
+                render={(key, label) => <span style={{ fontFamily: key || undefined }}>{label}</span>}
+                onPick={(key) => {
+                  if (key) run().setFontFamily(key).run()
+                  else run().unsetFontFamily().run()
+                  close()
+                }}
+              />
+            )}
+          </Dropdown>
+          <Dropdown
+            title="글자 크기"
+            button={<span className="se-label">{parseInt(state.fontSize) || 16}</span>}
+          >
+            {(close) => (
+              <OptionList
+                options={fontSizes.map((size) => [size, size] as const)}
+                value={String(parseInt(state.fontSize) || 16)}
+                render={(key) => <span style={{ fontSize: Math.min(Number(key), 24) }}>{key}</span>}
+                onPick={(key) => {
+                  if (key === '16') run().unsetFontSize().run()
+                  else run().setFontSize(`${key}px`).run()
+                  close()
+                }}
+              />
+            )}
+          </Dropdown>
+          <span className="se-divider" />
+          <ToolButton label="굵게" active={state.bold} onClick={() => run().toggleBold().run()}>
+            <Bold size={17} />
+          </ToolButton>
+          <ToolButton label="기울임" active={state.italic} onClick={() => run().toggleItalic().run()}>
+            <Italic size={17} />
+          </ToolButton>
+          <ToolButton label="밑줄" active={state.underline} onClick={() => run().toggleUnderline().run()}>
+            <Underline size={17} />
+          </ToolButton>
+          <ToolButton label="취소선" active={state.strike} onClick={() => run().toggleStrike().run()}>
+            <Strikethrough size={17} />
+          </ToolButton>
+          <Dropdown
+            title="글자 색"
+            button={
+              <span className="se-color-icon">
+                <Baseline size={17} />
+                <i style={{ background: state.color || '#26332c' }} />
+              </span>
+            }
+          >
+            {(close) => (
+              <Palette
+                rows={textColors}
+                value={state.color}
+                resetLabel="기본 색"
+                onPick={(color) => {
+                  if (color) run().setColor(color).run()
+                  else run().unsetColor().run()
+                  close()
+                }}
+              />
+            )}
+          </Dropdown>
+          <Dropdown
+            title="형광펜"
+            button={
+              <span className="se-color-icon">
+                <Highlighter size={17} />
+                <i style={{ background: state.highlight || '#fff3a3' }} />
+              </span>
+            }
+          >
+            {(close) => (
+              <Palette
+                rows={highlightColors}
+                value={state.highlight}
+                resetLabel="형광펜 지우기"
+                onPick={(color) => {
+                  if (color) run().setHighlight({ color }).run()
+                  else run().unsetHighlight().run()
+                  close()
+                }}
+              />
+            )}
+          </Dropdown>
+          <span className="se-divider" />
+          <Dropdown title="정렬" button={<AlignIcon size={17} />}>
+            {(close) => (
+              <OptionList
+                options={[
+                  ['left', '왼쪽 정렬'],
+                  ['center', '가운데 정렬'],
+                  ['right', '오른쪽 정렬'],
+                  ['justify', '양쪽 정렬'],
+                ]}
+                value={state.align}
+                onPick={(align) => {
+                  run().setTextAlign(align).run()
+                  close()
+                }}
+              />
+            )}
+          </Dropdown>
+          <Dropdown title="줄간격" button={<UnfoldVertical size={17} />}>
+            {(close) => (
+              <OptionList
+                options={lineHeights}
+                value={state.lineHeight || '1.8'}
+                onPick={(value) => {
+                  run()
+                    .setParagraphLineHeight(value === '1.8' ? null : value)
+                    .run()
+                  close()
+                }}
+              />
+            )}
+          </Dropdown>
+          <Dropdown title="자간" button={<MoveHorizontal size={17} />}>
+            {(close) => (
+              <OptionList
+                options={letterSpacings}
+                value={state.letterSpacing}
+                onPick={(value) => {
+                  run()
+                    .setLetterSpacing(value || null)
+                    .run()
+                  close()
+                }}
+              />
+            )}
+          </Dropdown>
+          <span className="se-divider" />
+          <ToolButton
+            label="글머리 기호"
+            active={state.bulletList}
+            onClick={() => run().toggleBulletList().run()}
+          >
+            <List size={17} />
+          </ToolButton>
+          <ToolButton
+            label="번호 매기기"
+            active={state.orderedList}
+            onClick={() => run().toggleOrderedList().run()}
+          >
+            <ListOrdered size={17} />
+          </ToolButton>
+          <ToolButton label="체크리스트" active={state.taskList} onClick={() => run().toggleTaskList().run()}>
+            <ListChecks size={17} />
+          </ToolButton>
+          <ToolButton
+            label="위 첨자"
+            active={state.superscript}
+            onClick={() => run().toggleSuperscript().run()}
+          >
+            <SuperscriptIcon size={17} />
+          </ToolButton>
+          <ToolButton
+            label="아래 첨자"
+            active={state.subscript}
+            onClick={() => run().toggleSubscript().run()}
+          >
+            <SubscriptIcon size={17} />
+          </ToolButton>
+          <Dropdown
+            title="링크 걸기"
+            align="end"
+            button={<Link size={17} className={state.link ? 'se-on' : ''} />}
+          >
+            {(close) => (
+              <UrlForm
+                key={state.link}
+                label="링크 주소"
+                initial={state.link}
+                placeholder="https:// 또는 mailto:, tel:"
+                submitLabel="적용"
+                onSubmit={(url) => {
+                  const error = setLink(url)
+                  if (!error) close()
+                  return error
+                }}
+                extra={
+                  state.link && (
                     <button
                       type="button"
-                      draggable
-                      className="doc-tool-icon doc-drag-handle"
-                      aria-label={`${index + 1}번 블록 드래그로 이동`}
-                      title="드래그하여 순서 변경"
-                      onDragStart={(e) => {
-                        dragging.current = block.id
-                        e.dataTransfer.setData('text/plain', block.id)
-                        e.dataTransfer.effectAllowed = 'move'
-                      }}
-                      onDragEnd={() => {
-                        dragging.current = ''
-                      }}
-                    >
-                      <GripVertical size={16} />
-                    </button>
-                    <button
-                      type="button"
-                      className="doc-block-select"
-                      aria-expanded={editing}
                       onClick={() => {
-                        selection.current = { start: 0, end: 0 }
-                        setSelected(editing ? '' : block.id)
+                        run().extendMarkRange('link').unsetLink().run()
+                        close()
                       }}
                     >
-                      <Icon size={14} />
-                      <span>
-                        {String(index + 1).padStart(2, '0')} · {blockLabels[block.type]}
-                      </span>
+                      링크 해제
                     </button>
-                    <div className="doc-block-actions">
-                      <button
-                        type="button"
-                        className="doc-tool-icon"
-                        aria-label={`${index + 1}번 블록 위로`}
-                        disabled={index === 0}
-                        onClick={() => move(index, index - 1)}
-                      >
-                        <ArrowUp size={14} />
-                      </button>
-                      <button
-                        type="button"
-                        className="doc-tool-icon"
-                        aria-label={`${index + 1}번 블록 아래로`}
-                        disabled={index === value.blocks.length - 1}
-                        onClick={() => move(index, index + 1)}
-                      >
-                        <ArrowDown size={14} />
-                      </button>
-                      <button
-                        type="button"
-                        className="doc-tool-icon"
-                        aria-label={`${index + 1}번 블록 복제`}
-                        disabled={value.blocks.length >= MAX_BLOCKS}
-                        onClick={() => {
-                          const copy = { ...block, id: crypto.randomUUID() }
-                          const blocks = [...value.blocks]
-                          blocks.splice(index + 1, 0, copy)
-                          commit({ ...value, blocks })
-                          setSelected(copy.id)
-                        }}
-                      >
-                        <Copy size={14} />
-                      </button>
-                      <button
-                        type="button"
-                        className="doc-tool-icon"
-                        aria-label={`${index + 1}번 블록 삭제`}
-                        onClick={() => {
-                          commit({ ...value, blocks: value.blocks.filter((b) => b.id !== block.id) })
-                          if (editing) setSelected('')
-                          setNotice('블록을 삭제했습니다. 실행 취소로 복원할 수 있습니다.')
-                        }}
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </div>
-                  {editing ? (
-                    <div className="doc-block-fields">
-                      <p className="doc-field-help">{help[block.type]}</p>
-                      {['markdown', 'callout'].includes(block.type) && (
-                        <div className="doc-format-toolbar" aria-label="마크다운 서식">
-                          {[
-                            { label: '제목 넣기', icon: Heading2, before: '\n## ', fallback: '제목' },
-                            { label: '굵게', icon: Bold, before: '**', after: '**' },
-                            { label: '기울임', icon: Italic, before: '*', after: '*' },
-                            {
-                              label: '형광 강조',
-                              icon: Highlighter,
-                              before: '<mark class="doc-highlight">',
-                              after: '</mark>',
-                            },
-                            {
-                              label: '본문 숫자 강조',
-                              icon: Hash,
-                              before: '<span class="doc-number">',
-                              after: '</span>',
-                              fallback: '100',
-                            },
-                            { label: '목록 넣기', icon: List, before: '\n- ' },
-                            { label: '체크리스트 넣기', icon: CheckSquare, before: '\n- [ ] ' },
-                            { label: '인용 넣기', icon: Quote, before: '\n> ' },
-                            { label: '링크 넣기', icon: Link2, before: '[', after: '](https://example.com)' },
-                            {
-                              label: '표 넣기',
-                              icon: Table2,
-                              before: '\n| 항목 | 내용 |\n| --- | --- |\n| ',
-                              after: ' | 입력 |\n',
-                            },
-                          ].map(({ label, icon: ToolIcon, before, after, fallback }) => (
-                            <button
-                              type="button"
-                              key={label}
-                              className="doc-tool-icon"
-                              title={label}
-                              aria-label={label}
-                              onMouseDown={(e) => e.preventDefault()}
-                              onClick={() => insert(before, after, fallback)}
-                            >
-                              <ToolIcon size={16} />
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                      {block.type !== 'divider' && block.type !== 'image' && (
-                        <textarea
-                          ref={sourceRef}
-                          aria-label={`${index + 1}번 블록 내용`}
-                          className={`doc-source doc-source-${block.type}`}
-                          maxLength={20000}
-                          rows={block.type === 'stat' ? 2 : 7}
-                          value={block.content}
-                          spellCheck={!['mermaid', 'html'].includes(block.type)}
-                          placeholder={
-                            block.type === 'stat'
-                              ? '예: 128건, 3.2억 원, 87%'
-                              : block.type === 'html'
-                                ? '<div class="doc-box" style="background-color:#eef4e8">안내 내용</div>'
-                                : block.type === 'mermaid'
-                                  ? 'flowchart LR\n  A[시작] --> B[완료]'
-                                  : '내용을 입력하세요. / 를 입력하면 블록 종류를 선택할 수 있습니다.'
-                          }
-                          onSelect={(e) => {
-                            selection.current = {
-                              start: e.currentTarget.selectionStart,
-                              end: e.currentTarget.selectionEnd,
-                            }
-                          }}
-                          onChange={(e) => update(block.id, { content: e.target.value })}
-                        />
-                      )}
-                      {block.type === 'markdown' && block.content === '/' && renderMenu()}
-                      {block.type === 'mermaid' && (
-                        <button
-                          type="button"
-                          className="doc-tool-button"
-                          onClick={() =>
-                            update(block.id, {
-                              content: block.content ? block.content + '\n' + diagramExample : diagramExample,
-                            })
-                          }
-                          disabled={Boolean(block.content)}
-                        >
-                          <Network size={14} />
-                          흐름도 예제 넣기
-                        </button>
-                      )}
-                      {block.type === 'image' && (
-                        <>
-                          <label>
-                            이미지 주소
-                            <input
-                              aria-label={`${index + 1}번 이미지 주소`}
-                              type="text"
-                              value={block.content.startsWith('blob:') ? '' : block.content}
-                              placeholder="https://…"
-                              onChange={(e) => update(block.id, { content: e.target.value })}
-                            />
-                          </label>
-                          <label className="doc-image-upload">
-                            <ImagePlus size={16} />
-                            이미지 파일 선택
-                            <input
-                              aria-label={`${index + 1}번 본문 이미지 파일`}
-                              type="file"
-                              accept="image/png,image/jpeg,image/webp"
-                              onChange={(e) => {
-                                const file = e.target.files?.[0]
-                                if (file) {
-                                  if (
-                                    file.size > 10 * 1024 * 1024 ||
-                                    !['image/png', 'image/jpeg', 'image/webp'].includes(file.type)
-                                  ) {
-                                    setNotice('JPG · PNG · WebP 형식의 10MB 이하 이미지를 선택해 주세요.')
-                                    return
-                                  }
-                                  update(block.id, { content: onImageFile(file) })
-                                }
-                              }}
-                            />
-                          </label>
-                        </>
-                      )}
-                      {['stat', 'image'].includes(block.type) && (
-                        <label>
-                          {block.type === 'stat' ? '숫자 설명' : '이미지 캡션'}
-                          <input
-                            aria-label={`${index + 1}번 블록 캡션`}
-                            maxLength={300}
-                            value={block.caption}
-                            placeholder={
-                              block.type === 'stat'
-                                ? '예: 확인된 피해 사례 · 2026년 10월 기준'
-                                : '이미지에 대한 설명'
-                            }
-                            onChange={(e) => update(block.id, { caption: e.target.value })}
-                          />
-                        </label>
-                      )}
-                      <StyleControls style={block.style} onChange={(style) => update(block.id, { style })} />
-                      {mode === 'edit' && (
-                        <div className="doc-inline-preview">
-                          <span>블록 미리보기</span>
-                          <DocumentBlockView block={block} localImage />
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="doc-block-preview">
-                      <DocumentBlockView block={block} localImage />
-                      {!block.content && block.type !== 'divider' && (
-                        <button
-                          type="button"
-                          className="doc-empty-edit"
-                          onClick={() => setSelected(block.id)}
-                        >
-                          내용을 작성하려면 클릭하세요
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-            {value.blocks.length > 0 && (
+                  )
+                }
+              />
+            )}
+          </Dropdown>
+          <ToolButton
+            label="서식 지우기"
+            onClick={() => run().unsetAllMarks().unsetTextAlign().setParagraphLineHeight(null).run()}
+          >
+            <RemoveFormatting size={17} />
+          </ToolButton>
+          <span className="se-divider" />
+          <ToolButton label="실행 취소" disabled={!state.canUndo} onClick={() => run().undo().run()}>
+            <Undo2 size={17} />
+          </ToolButton>
+          <ToolButton label="다시 실행" disabled={!state.canRedo} onClick={() => run().redo().run()}>
+            <Redo2 size={17} />
+          </ToolButton>
+        </div>
+        {state.table && (
+          <div className="se-table-tools" aria-label="표 편집">
+            <strong>표</strong>
+            <ToolButton label="위에 행 추가" onClick={() => run().addRowBefore().run()}>
+              <BetweenHorizontalStart size={16} />
+            </ToolButton>
+            <ToolButton label="아래에 행 추가" onClick={() => run().addRowAfter().run()}>
+              <BetweenHorizontalEnd size={16} />
+            </ToolButton>
+            <ToolButton label="왼쪽에 열 추가" onClick={() => run().addColumnBefore().run()}>
+              <BetweenVerticalStart size={16} />
+            </ToolButton>
+            <ToolButton label="오른쪽에 열 추가" onClick={() => run().addColumnAfter().run()}>
+              <BetweenVerticalEnd size={16} />
+            </ToolButton>
+            <ToolButton label="행 삭제" className="se-text-tool" onClick={() => run().deleteRow().run()}>
+              행 삭제
+            </ToolButton>
+            <ToolButton label="열 삭제" className="se-text-tool" onClick={() => run().deleteColumn().run()}>
+              열 삭제
+            </ToolButton>
+            <ToolButton label="셀 합치기" onClick={() => run().mergeCells().run()}>
+              <TableCellsMerge size={16} />
+            </ToolButton>
+            <ToolButton label="셀 나누기" onClick={() => run().splitCell().run()}>
+              <TableCellsSplit size={16} />
+            </ToolButton>
+            <ToolButton
+              label="머리글 행"
+              className="se-text-tool"
+              onClick={() => run().toggleHeaderRow().run()}
+            >
+              머리글
+            </ToolButton>
+            <Dropdown title="셀 배경색" button={<PaintBucket size={16} />}>
+              {(close) => (
+                <Palette
+                  rows={[...highlightColors, textColors[2]]}
+                  value={state.cellBackground}
+                  resetLabel="배경 없음"
+                  onPick={(color) => {
+                    run().setCellAttribute('background', color).run()
+                    close()
+                  }}
+                />
+              )}
+            </Dropdown>
+            <ToolButton label="표 삭제" onClick={() => run().deleteTable().run()}>
+              <Trash2 size={16} />
+            </ToolButton>
+          </div>
+        )}
+      </div>
+      {pending.length > 0 && (
+        <div className="se-image-choice" role="group" aria-label="사진 넣는 방식">
+          <strong>사진 {pending.length}장을 어떻게 넣을까요?</strong>
+          <button type="button" onClick={() => insertImages(pending, 'single')}>
+            개별 사진
+          </button>
+          <button type="button" onClick={() => insertImages(pending, 'collage')}>
+            콜라주
+          </button>
+          <button type="button" onClick={() => insertImages(pending, 'slide')}>
+            슬라이드
+          </button>
+          <button type="button" className="se-choice-cancel" onClick={() => setPending([])}>
+            취소
+          </button>
+        </div>
+      )}
+      <div
+        className="se-canvas"
+        hidden={Boolean(preview)}
+        // 본문 아래 빈 공간을 눌러도 마지막 줄에서 이어 쓸 수 있습니다.
+        onMouseDown={(e) => {
+          if (e.target !== e.currentTarget) return
+          e.preventDefault()
+          editor.commands.focus('end')
+        }}
+      >
+        <div className="se-paper">
+          <EditorContent editor={editor} />
+        </div>
+      </div>
+      {preview && (
+        <div className="se-preview">
+          <div className="se-preview-bar" role="group" aria-label="미리보기 화면">
+            {(
+              [
+                ['pc', 'PC'],
+                ['mobile', '모바일'],
+              ] as const
+            ).map(([mode, label]) => (
               <button
                 type="button"
-                className="doc-append"
-                onClick={() => add('markdown')}
-                disabled={value.blocks.length >= MAX_BLOCKS}
+                key={mode}
+                aria-pressed={preview.mode === mode}
+                onClick={() => setPreview({ ...preview, mode })}
               >
-                <Plus size={16} />
-                텍스트 블록 추가 <span>/ 로 다른 블록 선택</span>
+                {label}
               </button>
-            )}
+            ))}
+            <span>저장하면 상세페이지에 이렇게 표시됩니다.</span>
           </div>
-        )}
-        {mode !== 'edit' && (
-          <div className="doc-preview-canvas">
-            <div className="doc-preview-label">
-              <span className="doc-live-dot" />
-              본문 미리보기<span>저장 후 상세페이지에 반영</span>
-            </div>
-            {value.blocks.length ? (
-              <CompanyDocumentView document={deferred} localImages />
-            ) : (
-              <p className="doc-preview-empty">작성한 내용이 여기에 표시됩니다.</p>
-            )}
+          <div className={`se-preview-frame is-${preview.mode}`}>
+            <CompanyDocumentView document={{ version: 2, html: preview.html }} localImages />
           </div>
-        )}
-      </div>
-      <div className="doc-editor-footer">
-        <span role="status">{notice || '마크다운 · HTML 지원 / 변경사항은 저장하기를 눌러 반영하세요.'}</span>
-        <span className={chars > MAX_DOCUMENT_LENGTH ? 'doc-limit-error' : ''}>
-          {chars.toLocaleString()} / 100,000자
+        </div>
+      )}
+      <div className="se-footer">
+        <span role="status">
+          {notice ||
+            (savedAt
+              ? `${time(savedAt)} 자동 임시저장됨 · 저장하기를 눌러야 상세페이지에 반영됩니다.`
+              : '변경사항은 저장하기를 눌러 반영하세요.')}
+        </span>
+        <span className={overLimit ? 'se-limit-error' : ''}>
+          {overLimit
+            ? `본문 용량 초과 (${Math.round((htmlLength / MAX_DOCUMENT_HTML) * 100)}%)`
+            : `글자수 ${state.characters.toLocaleString()} · 공백 제외 ${state.withoutSpaces.toLocaleString()}`}
         </span>
       </div>
-      <details className="doc-writing-guide">
-        <summary>마크다운 · HTML 작성 도움말</summary>
-        <div>
-          <p>
-            <code>## 제목</code> · <code>**굵게**</code> · <code>- 목록</code> · <code>- [ ] 체크리스트</code>{' '}
-            · <code>[링크](https://…)</code>
-          </p>
-          <p>
-            마크다운 안에 <code>```mermaid</code> 코드 블록을 넣어도 다이어그램으로 표시됩니다.
-          </p>
-          <p>
-            HTML 예시: <code>{'<span style="color:#bd633f">색상 강조</span>'}</code>
-          </p>
-          <p>
-            서식 클래스: <code>doc-box</code> 박스 · <code>doc-highlight</code> 형광 강조 ·{' '}
-            <code>doc-number</code> 숫자 강조 · <code>doc-fade</code> / <code>doc-pulse</code> /{' '}
-            <code>doc-float</code> 애니메이션
-          </p>
-          <p>
-            제목·목록·표·이미지·접기(details) 태그와 색상·글자 크기·여백·테두리·그림자 스타일을 지원합니다.
-          </p>
-        </div>
-      </details>
+      <input
+        ref={fileInput}
+        type="file"
+        hidden
+        multiple
+        accept={imageTypes.join(',')}
+        aria-label="본문 사진 파일"
+        onChange={(e) => {
+          addFiles([...(e.target.files || [])])
+          e.target.value = ''
+        }}
+      />
     </section>
-  )
-}
-
-function StyleControls({ style, onChange }: { style: BlockStyle; onChange: (style: BlockStyle) => void }) {
-  function set<K extends keyof BlockStyle>(key: K, value: BlockStyle[K]) {
-    onChange({ ...style, [key]: value })
-  }
-  return (
-    <details className="doc-style-controls">
-      <summary>
-        <Sparkles size={14} />
-        색상 · 박스 · 효과
-      </summary>
-      <div className="doc-style-panel">
-        <div className="doc-colors">
-          {(
-            [
-              ['color', '글자 색상'],
-              ['background', '배경 색상'],
-              ['borderColor', '테두리 색상'],
-              ['accent', '강조 색상'],
-            ] as const
-          ).map(([key, label]) => (
-            <label key={key}>
-              {label}
-              <input
-                type="color"
-                aria-label={label}
-                value={style[key] === 'transparent' ? '#ffffff' : style[key]}
-                onChange={(e) => set(key, e.target.value)}
-              />
-            </label>
-          ))}
-        </div>
-        <label className="doc-transparent">
-          <input
-            type="checkbox"
-            checked={style.background === 'transparent'}
-            onChange={(e) => set('background', e.target.checked ? 'transparent' : '#f1f5ec')}
-          />
-          배경 투명하게
-        </label>
-        <div className="doc-style-grid">
-          <label>
-            그림자
-            <select
-              aria-label="그림자"
-              value={style.shadow}
-              onChange={(e) => set('shadow', e.target.value as BlockStyle['shadow'])}
-            >
-              <option value="none">없음</option>
-              <option value="soft">은은하게</option>
-              <option value="strong">선명하게</option>
-            </select>
-          </label>
-          <label>
-            강조 애니메이션
-            <select
-              aria-label="강조 애니메이션"
-              value={style.animation}
-              onChange={(e) => set('animation', e.target.value as BlockStyle['animation'])}
-            >
-              <option value="none">없음</option>
-              <option value="fade">서서히 등장</option>
-              <option value="pulse">은은한 강조</option>
-              <option value="float">살짝 떠오르기</option>
-            </select>
-          </label>
-          <label>
-            정렬
-            <select
-              aria-label="정렬"
-              value={style.align}
-              onChange={(e) => set('align', e.target.value as BlockStyle['align'])}
-            >
-              <option value="left">왼쪽</option>
-              <option value="center">가운데</option>
-              <option value="right">오른쪽</option>
-            </select>
-          </label>
-          {(
-            [
-              ['fontSize', '글자 크기', 12, 72],
-              ['radius', '모서리 둥글기', 0, 40],
-              ['padding', '안쪽 여백', 0, 64],
-              ['borderWidth', '테두리 두께', 0, 8],
-            ] as const
-          ).map(([key, label, min, max]) => (
-            <label key={key}>
-              {label}
-              <span className="doc-number-control">
-                <input
-                  type="number"
-                  aria-label={label}
-                  min={min}
-                  max={max}
-                  value={style[key]}
-                  onChange={(e) => set(key, Math.min(max, Math.max(min, Number(e.target.value))))}
-                />
-                px
-              </span>
-            </label>
-          ))}
-        </div>
-        <button type="button" className="doc-style-reset" onClick={() => onChange({ ...defaultBlockStyle })}>
-          스타일 초기화
-        </button>
-      </div>
-    </details>
   )
 }

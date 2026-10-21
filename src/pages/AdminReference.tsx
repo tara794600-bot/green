@@ -27,7 +27,12 @@ import {
 } from '../lib/types'
 import { EmptyState, ErrorNotice, Modal } from '../components/ui'
 import CompanyDocumentEditor from '../components/CompanyDocumentEditor'
-import { companyDocumentSchema, type CompanyDocument } from '../../shared/company-document.mjs'
+import { clearDocumentDraft } from '../lib/company-document'
+import {
+  companyDocumentSchema,
+  htmlImageSources,
+  type CompanyDocument,
+} from '../../shared/company-document.mjs'
 import './reference.css'
 
 type Kind = 'rolling' | 'companies' | 'powerlinks'
@@ -440,8 +445,9 @@ function ReferenceEditor({
 }) {
   const initial = value === 'new' ? null : value
   const [document, setDocument] = useState<CompanyDocument>(() =>
-    initial && 'document' in initial && initial.document ? initial.document : { version: 1, blocks: [] },
+    initial && 'document' in initial && initial.document ? initial.document : { version: 2, html: '' },
   )
+  const draftKey = initial?.id || 'new'
   // 편집 중에는 blob URL로 미리보기만 만듭니다. 실제 업로드는 저장 시 수행하고 닫을 때 URL을 해제합니다.
   const imageFiles = useRef(new Map<string, File>())
   useEffect(() => {
@@ -490,38 +496,42 @@ function ReferenceEditor({
     let uploaded = '',
       persisted = false
     try {
+      // 본문에 남아 있는 업로드 전 사진(blob URL)입니다. 같은 사진을 여러 번 넣어도 한 번만 업로드합니다.
+      const localImages =
+        kind === 'companies' && 'html' in document
+          ? [...new Set(htmlImageSources(document.html))].filter((src) => imageFiles.current.has(src))
+          : []
+      const replaceImages = (html: string, urls: string[]) =>
+        localImages.reduce((text, src, i) => text.replaceAll(src, urls[i]), html)
       // 업로드 전에 문서를 검사합니다. 이 편집기가 보유한 blob URL만 검증용 경로로 임시 치환합니다.
       if (kind === 'companies') {
-        const checked = companyDocumentSchema.safeParse({
-          ...document,
-          blocks: document.blocks.map((b) =>
-            b.type === 'image' && imageFiles.current.has(b.content)
-              ? { ...b, content: '/images/pending.webp' }
-              : b,
-          ),
-        })
+        const checked = companyDocumentSchema.safeParse(
+          'html' in document
+            ? {
+                ...document,
+                html: replaceImages(
+                  document.html,
+                  localImages.map(() => '/images/pending.webp'),
+                ),
+              }
+            : document,
+        )
         if (!checked.success) throw new Error(checked.error.issues[0].message)
       }
       if (file) {
         uploaded = await uploadImage(file)
         uploadedImages.push(uploaded)
       }
-      const savedDocument: CompanyDocument = { ...document, blocks: [] }
-      // 복제한 블록이 같은 blob URL을 참조하면 한 번만 업로드하고 저장용 URL을 재사용합니다.
-      const localUploads = new Map<string, string>()
-      if (kind === 'companies')
-        for (const block of document.blocks) {
-          const bodyFile = block.type === 'image' ? imageFiles.current.get(block.content) : undefined
-          if (bodyFile) {
-            let url = localUploads.get(block.content)
-            if (!url) {
-              url = await uploadImage(bodyFile)
-              localUploads.set(block.content, url)
-              uploadedImages.push(url)
-            }
-            savedDocument.blocks.push({ ...block, content: url })
-          } else savedDocument.blocks.push(block)
+      let savedDocument = document
+      if ('html' in document && localImages.length) {
+        const urls: string[] = []
+        for (const src of localImages) {
+          const url = await uploadImage(imageFiles.current.get(src)!)
+          urls.push(url)
+          uploadedImages.push(url)
         }
+        savedDocument = { ...document, html: replaceImages(document.html, urls) }
+      }
       const selectedImage = uploaded || image
       const payload =
         kind === 'rolling'
@@ -541,6 +551,7 @@ function ReferenceEditor({
         body: JSON.stringify(payload),
       })
       persisted = true
+      if (kind === 'companies') clearDocumentDraft(draftKey)
       await onSave(
         result.warning ||
           (kind === 'powerlinks'
@@ -702,7 +713,12 @@ function ReferenceEditor({
                 <small>JPG · PNG · WebP / 최대 10MB. 업로드할 때 웹용 이미지로 최적화합니다.</small>
               </label>
               {kind === 'companies' && (
-                <CompanyDocumentEditor value={document} onChange={setDocument} onImageFile={addImageFile} />
+                <CompanyDocumentEditor
+                  value={document}
+                  onChange={setDocument}
+                  onImageFile={addImageFile}
+                  draftKey={draftKey}
+                />
               )}
             </>
           )}

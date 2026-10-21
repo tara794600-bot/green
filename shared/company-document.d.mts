@@ -21,12 +21,28 @@ export type DocumentBlock = {
   caption: string
   style: BlockStyle
 }
-export type CompanyDocument = { version: 1; blocks: DocumentBlock[] }
+/** 이전 블록 편집기로 저장된 본문입니다. 읽을 때 HTML로 변환합니다. */
+export type LegacyCompanyDocument = { version: 1; blocks: DocumentBlock[] }
+export type HtmlCompanyDocument = { version: 2; html: string }
+export type CompanyDocument = HtmlCompanyDocument | LegacyCompanyDocument
+export type DocumentFont = {
+  label: string
+  family: string
+  fallback: string
+  weights?: string
+  bundled?: boolean
+}
+export const MAX_DOCUMENT_HTML: number
+export const MAX_DOCUMENT_IMAGES: number
 export const MAX_BLOCKS: number
 export const MAX_DOCUMENT_LENGTH: number
 export const blockTypes: BlockType[]
+export const documentFonts: DocumentFont[]
 export const companyDocumentSchema: z.ZodType<CompanyDocument>
 export function isImageUrl(value: string): boolean
-export function sanitizeContent(html: string): string
-export function markdownParts(source: string): { kind: 'html' | 'diagram'; content: string }[]
+export function htmlImageSources(html: string): string[]
+export function sanitizeContent(html: string, options?: { localImages?: boolean }): string
+export function fontStylesheet(html: string): string
+export function documentHtml(document: CompanyDocument | undefined): string
+export function hasDocumentContent(document: CompanyDocument | undefined): boolean
 export function documentImageUrls(record: { image?: string; document?: CompanyDocument }): string[]

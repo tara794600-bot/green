@@ -289,9 +289,13 @@
   background: #f0f5ea;
   border-color: #ccdbc1;
 }
+/* 전역 input 너비·높이가 라디오 버튼을 늘리지 않게 합니다. */
 .visibility-options input {
+  flex: none;
+  width: auto;
+  min-height: 0;
+  margin: 3px 10px 0 0;
   accent-color: #405e3c;
-  margin-top: 3px;
 }
 .visibility-options strong {
   display: block;
