@@ -73,7 +73,8 @@ npm run dev
 | Firestore·로컬 저장·기본 콘텐츠 병합 | [server/store.mjs](./server/store.mjs), [shared/content.json](./shared/content.json) |
 | 업체·파워링크 처리·이미지 업로드 | [server/reference.mjs](./server/reference.mjs), [server/media.mjs](./server/media.mjs) |
 | Telegram·Google Sheets 전송 | [server/integrations.mjs](./server/integrations.mjs) |
-| 서버 렌더링·메타정보·사이트맵 | [server/render.mjs](./server/render.mjs), [src/entry-server.tsx](./src/entry-server.tsx) |
+| 서버 렌더링 | [server/render.mjs](./server/render.mjs), [src/entry-server.tsx](./src/entry-server.tsx) |
+| 검색 노출: 메타정보·구조화 데이터·robots·사이트맵·RSS·llms.txt·IndexNow | [shared/seo.mjs](./shared/seo.mjs)(페이지별 제목·설명·색인 규칙, 서버·브라우저 공용), [server/seo.mjs](./server/seo.mjs) |
 | Vercel 진입점·경로 연결·번들 설정 | [api/handler.js](./api/handler.js), [api/render.js](./api/render.js), [vercel.json](./vercel.json), [vite.config.ts](./vite.config.ts) |
 
 개발 중에는 Vite가 `/api` 요청을 서버 핸들러로 연결합니다. Vercel에서는 `api/` 진입점이 같은 서버 모듈을 사용하며, 공개 페이지의 초기 HTML은 React 서버 렌더링으로 생성합니다. `dist`만 정적 호스팅에 올리면 관리자·상담 기능이 동작하지 않습니다.

@@ -14,6 +14,7 @@ import {
 import { companySchema, rollingSchema, HttpError, parse } from './validation.mjs'
 import { deleteUnusedImage } from './media.mjs'
 import { documentImageUrls } from '../shared/company-document-schema.mjs'
+import { companyUrls, notifySearchEngines } from './seo.mjs'
 
 // 광고 경로는 한 단계로 제한하고 기존 공개·관리자·API 경로와 충돌하지 않도록 합니다.
 export function powerlinkPrefix() {
@@ -144,6 +145,7 @@ export async function referenceAdmin(path, method, url, readBody, req) {
     )
     const warning = warnings.find(Boolean) || ''
     await audit(`${labels[kind]} ${id ? '수정' : '등록'}`, recordId)
+    if (kind === 'companies') await notifySearchEngines(companyUrls(recordId))
     return { ...value, ...(kind === 'companies' ? { visibility: payload.visibility } : {}), warning }
   }
   if (method === 'PATCH' && id && kind === 'companies') {
@@ -162,6 +164,7 @@ export async function referenceAdmin(path, method, url, readBody, req) {
       }
     })
     await audit('사기업체 노출 설정 변경', id, visibility)
+    await notifySearchEngines(companyUrls(id))
     return { ...normalizeRecord(value), visibility }
   }
   // 파워링크는 관리 목록만 삭제합니다. 토큰 복호화는 목록 조회와 독립적이므로 기존 URL은 유지됩니다.
@@ -174,6 +177,8 @@ export async function referenceAdmin(path, method, url, readBody, req) {
     const warnings = await Promise.all(documentImageUrls(old).map(deleteUnusedImage))
     const warning = warnings.find(Boolean) || ''
     await audit(`${labels[kind]} 삭제`, id)
+    // 삭제한 주소도 알려 검색 결과에서 빨리 빠지게 합니다.
+    if (kind === 'companies') await notifySearchEngines(companyUrls(id))
     return { ok: true, warning }
   }
   throw new HttpError(405, '지원하지 않는 요청입니다.')

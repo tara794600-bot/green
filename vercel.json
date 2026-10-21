@@ -7,7 +7,7 @@
     { "source": "/api/render", "destination": "/api/render" },
     { "source": "/api/:path*", "destination": "/api/handler?__route=:path*" },
     {
-      "source": "/((?!api/|assets/|images/|naran.svg|favicon.svg|robots.txt).*)",
+      "source": "/((?!api/|assets/|images/|naran.svg|favicon.svg).*)",
       "destination": "/api/render?path=/$1"
     }
   ],

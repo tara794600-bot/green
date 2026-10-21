@@ -123,6 +123,21 @@
   color: #6c7765;
   overflow-wrap: anywhere;
 }
+.company-updated {
+  margin-top: 14px;
+  font-size: 12px;
+  color: #8a9483;
+}
+.company-related {
+  padding-bottom: 60px;
+}
+.company-related h2 {
+  margin-bottom: 26px;
+  font-size: 24px;
+}
+.company-pagination .is-disabled {
+  opacity: 0.3;
+}
 .company-detail-cta {
   padding: 28px;
   margin-top: 40px;

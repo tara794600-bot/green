@@ -157,9 +157,39 @@ npm start
 
 `npm start` 기본 주소는 http://127.0.0.1:4173 입니다. `PORT`와 `HOST` 환경변수로 변경할 수 있습니다. 운영 배포는 HTTPS 리버스 프록시 뒤에서 실행하세요. 운영 세션 쿠키는 `Secure` 속성을 사용합니다.
 
-Vercel용 `api/`와 `vercel.json`도 포함했습니다. 빌드 명령은 `npm run build`, 출력 폴더는 `dist`입니다. 서버 함수가 `dist-server`의 React 서버 렌더링을 사용합니다. 공개 상세페이지는 JavaScript 실행 전 HTML에 본문·제목·설명이 포함되며, `/sitemap.xml`은 공개 콘텐츠 기준으로 생성됩니다. 관리자 경로는 검색 제외 처리합니다. [Vercel 파일 포함 설정](https://vercel.com/docs/project-configuration/vercel-json#functions)
+Vercel용 `api/`와 `vercel.json`도 포함했습니다. 빌드 명령은 `npm run build`, 출력 폴더는 `dist`입니다. 서버 함수가 `dist-server`의 React 서버 렌더링을 사용합니다. 공개 상세페이지는 JavaScript 실행 전 HTML에 본문·제목·설명이 포함되며, 사이트맵·RSS 등 검색 관련 주소는 아래 [검색 노출(SEO)·AI 수집](#검색-노출seoai-수집)을 참고하세요. 관리자 경로는 검색 제외 처리합니다. [Vercel 파일 포함 설정](https://vercel.com/docs/project-configuration/vercel-json#functions)
 
 `SITE_URL`은 실제 접속 도메인의 **정확한 origin**으로 설정합니다. 다른 출처의 쓰기 요청은 거절합니다. API가 필요한 사이트이므로 `dist`만 정적 호스팅에 업로드하면 상담·관리자 기능이 동작하지 않습니다.
+
+## 검색 노출(SEO)·AI 수집
+
+서버가 아래 주소를 저장된 데이터로 매번 만들어 제공합니다. 모든 주소는 `SITE_URL` 기준 절대 주소입니다. 자료가 많아도 저장소를 매번 읽지 않도록 CDN에서 5분간 재사용합니다.
+
+| 주소 | 내용 |
+| --- | --- |
+| `/robots.txt` | 구글·네이버(Yeti)·빙·다음과 OpenAI(OAI-SearchBot·GPTBot·ChatGPT-User)·Anthropic·Perplexity 등 AI 로봇 수집 허용, `/admin`·`/api/` 제외, 사이트맵 위치 |
+| `/sitemap.xml` | 공개 페이지와 모든 업체 상세페이지. 최종 수정일(`lastmod`)과 대표 이미지 포함 |
+| `/rss.xml` | 최근 등록·수정된 상세페이지 100건(업체·사례·가이드). 요약과 본문 포함. 전화연결 업체는 제외 |
+| `/llms.txt` | AI 서비스용 사이트 안내와 업체 상세페이지 목록 |
+
+상세페이지에는 업체별 제목(`업체명 - 유형 정보`)·설명·대표 이미지·정식 주소(canonical)·Open Graph와 구조화 데이터(Article·BreadcrumbList·LegalService)가 서버 HTML에 들어갑니다. 내부 검색 결과(`?q=`)·광고 주소·관리자·없는 페이지는 색인 제외(`noindex`)입니다. 업체의 `검색차단`은 내부 검색만 숨기며 외부 검색·사이트맵·RSS에는 남습니다.
+
+### Google Search Console
+
+1. 속성을 추가하고 소유권을 확인합니다. `public/google…html` 파일 확인 또는 `GOOGLE_SITE_VERIFICATION` 메타 태그 중 하나를 사용합니다.
+2. Sitemaps 메뉴에서 `sitemap.xml`을 제출합니다.
+3. 중요한 업체 상세페이지는 URL 검사에서 색인 생성을 요청할 수 있습니다. 구글은 IndexNow를 사용하지 않으므로 사이트맵의 수정일로 변경을 확인합니다.
+
+### 네이버 서치어드바이저
+
+1. 사이트를 등록하고 소유확인을 합니다. `public/naver…html` 파일 또는 `NAVER_SITE_VERIFICATION` 메타 태그를 사용합니다.
+2. 요청 → 사이트맵 제출에 `https://도메인/sitemap.xml`, RSS 제출에 `https://도메인/rss.xml`을 등록합니다.
+3. 검증 → robots.txt에서 수집 허용을 확인합니다.
+4. IndexNow는 별도 설정 없이 동작합니다. `SITE_URL`이 HTTPS 운영 주소이면 업체·콘텐츠를 등록·수정·삭제할 때 네이버와 IndexNow 공용 주소(빙 등에 공유)에 바로 알립니다. 키는 도메인에서 만든 고정값이며 `https://도메인/{키}.txt`로 제공됩니다. 직접 정한 키를 쓰려면 `INDEXNOW_KEY`(8~128자, 영문·숫자·`-`)를 설정합니다. 알림 실패는 서버 로그(`[indexnow]`)에만 남고 저장은 계속됩니다.
+
+**Bing Webmaster Tools**(선택): ChatGPT 검색 노출에도 도움이 됩니다. Search Console 가져오기 또는 `BING_SITE_VERIFICATION`으로 등록하고 사이트맵을 제출합니다.
+
+OpenAI는 robots.txt 변경을 반영하는 데 약 24시간이 걸릴 수 있다고 안내합니다. 학습 수집(GPTBot)을 막고 ChatGPT 검색 노출(OAI-SearchBot)만 원하면 `server/seo.mjs`의 `crawlers` 목록과 규칙을 조정하세요.
 
 ## 검증
 

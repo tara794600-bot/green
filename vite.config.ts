@@ -34,6 +34,13 @@ export default defineConfig(({ mode }) => {
         name: 'naran-local-api',
         configureServer(server) {
           process.env.LOCAL_PREVIEW = 'true'
+          // robots.txt·사이트맵·RSS·llms.txt도 운영과 같은 서버 모듈로 응답합니다.
+          server.middlewares.use(async (req, res, next) => {
+            const file = pathToFileURL(resolve('server/seo.mjs')).href
+            const { serveSeoFile } = await import(/* @vite-ignore */ file)
+            const pathname = new URL(req.url || '/', 'http://localhost').pathname
+            if (!(await serveSeoFile(req, res, pathname))) next()
+          })
           server.middlewares.use('/api', async (req, res) => {
             req.url = '/api' + req.url
             // 개발 서버에서만 동적으로 로드합니다. 이 모듈을 클라이언트 코드에서 import하지 않습니다.

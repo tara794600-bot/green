@@ -5,45 +5,32 @@ import Home from './pages/Home'
 import { ContentContext, useContent } from './lib/content-context'
 import { api } from './lib/api'
 import type { PublicData } from './lib/types'
+import { pageMeta } from '../shared/seo.mjs'
 const PublicPages = lazy(() => import('./pages/PublicPages'))
 const Consultation = lazy(() => import('./pages/Consultation'))
 const Admin = lazy(() => import('./pages/Admin'))
 const Landing = lazy(() => import('./pages/Landing'))
-// SPA 내부 이동의 제목·검색 설정을 갱신합니다. 초기 HTML의 메타정보는 server/render.mjs가 담당합니다.
+// SPA 내부 이동에서도 서버 HTML과 같은 제목·설명·색인 규칙을 유지합니다. 계산은 shared/seo.mjs가 담당합니다.
 function Metadata() {
-  const { pathname } = useLocation()
-  const { articles, companies, selectedCompany, powerlinkPrefix, landing } = useContent()
+  const { pathname, search } = useLocation()
+  const content = useContent()
+  const [initialPath] = useState(pathname + search)
   useEffect(() => {
-    const meta = document.querySelector('meta[name="robots"]')
-    meta?.setAttribute(
-      'content',
-      pathname.startsWith('/admin') || pathname.startsWith(powerlinkPrefix || '/p/')
-        ? 'noindex, nofollow'
-        : 'index, follow',
-    )
-    const names: Record<string, string> = {
-      '/': '당신의 회복에, 법률로 나란히.',
-      '/about': '나란 소개',
-      '/practice': '업무 분야',
-      '/cases': '사례 안내',
-      '/guides': '소식·가이드',
-      '/faq': '자주 묻는 질문',
-      '/consultation': '상담 신청',
-      '/contact': '오시는 길',
-      '/privacy': '개인정보 처리 안내',
-      '/lawyers': '담당 변호사',
-      '/companies': '사기업체 정보',
-    }
-    const [root, id] = pathname.split('/').filter(Boolean)
-    const article = articles.find((a) => a.id === id)
-    const company =
-      root === 'companies'
-        ? selectedCompany?.id === id
-          ? selectedCompany
-          : companies?.find((c) => c.id === id)
-        : null
-    document.title = `${names[pathname] || company?.name || article?.title || (pathname.startsWith(powerlinkPrefix || '/p/') ? landing?.keyword || '나란 상담 안내' : pathname.startsWith('/admin') ? '관리자' : '상세 안내')} | 법무법인 나란`
-  }, [pathname, articles, companies, selectedCompany, powerlinkPrefix, landing])
+    const meta = pageMeta(pathname, search, content)
+    document.title = meta.title
+    for (const [selector, value] of [
+      ['meta[name="robots"]', meta.robots],
+      ['meta[name="description"]', meta.description],
+      ['meta[property="og:title"]', meta.title],
+      ['meta[property="og:description"]', meta.description],
+    ])
+      document.querySelector(selector)?.setAttribute('content', value)
+    const canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]')
+    if (canonical && meta.canonicalPath) canonical.href = new URL(meta.canonicalPath, canonical.href).href
+    // 구조화 데이터는 서버가 첫 화면에만 넣습니다. 다른 페이지로 이동하면 이전 페이지 정보를 지웁니다.
+    if (pathname + search !== initialPath)
+      document.querySelectorAll('script[type="application/ld+json"][data-seo]').forEach((el) => el.remove())
+  }, [pathname, search, content, initialPath])
   return null
 }
 class AppBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {

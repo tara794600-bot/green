@@ -23,6 +23,7 @@ import {
 import { deliver, integrationConfig } from './integrations.mjs'
 import { serveLocalMedia, uploadImage, deleteUnusedImage } from './media.mjs'
 import { sitemap } from './render.mjs'
+import { articleUrls, indexNowEnabled, notifySearchEngines } from './seo.mjs'
 import { attribution, companyDetail, landingData, referenceAdmin, requestPublicData } from './reference.mjs'
 
 // 업로드의 base64 오버헤드와 업체 본문 크기를 고려하되, 요청을 읽는 중에도 상한을 검사합니다.
@@ -241,13 +242,19 @@ export default async function handler(req, res) {
       const saved = { ...article, updatedAt: new Date().toISOString() }
       await put('siteContent', article.id, saved)
       await audit('콘텐츠 저장', article.id, article.published ? '공개' : '비공개')
+      await notifySearchEngines(articleUrls(saved))
       return json(res, 200, saved)
     }
     const contentMatch = path.match(/^\/api\/admin\/content\/([a-z0-9-]+)$/)
     if (contentMatch && method === 'DELETE') {
+      // 삭제 알림에 쓸 주소를 알기 위해 지우기 전 글 종류를 확인합니다.
+      const old = indexNowEnabled()
+        ? (await publicData(true)).articles.find((a) => a.id === contentMatch[1])
+        : null
       // 문서 자체를 없애면 기본 콘텐츠가 다시 보이므로 삭제 표식을 저장합니다.
       await put('siteContent', contentMatch[1], { id: contentMatch[1], deleted: true, published: false })
       await audit('콘텐츠 삭제', contentMatch[1])
+      if (old) await notifySearchEngines(articleUrls(old))
       return json(res, 200, { ok: true })
     }
     if (path === '/api/admin/settings' && method === 'PUT') {

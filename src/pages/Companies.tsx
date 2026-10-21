@@ -8,6 +8,7 @@ import { PageHero, EmptyState, ErrorNotice } from '../components/ui'
 import { ContactBanner } from '../components/Layout'
 import CompanyDocumentView from '../components/CompanyDocument'
 import { hasDocumentContent } from '../../shared/company-document.mjs'
+import { companyTitle, fullTitle } from '../../shared/seo.mjs'
 import './companies.css'
 
 export function CompanyCards({ items }: { items: CompanyCase[] }) {
@@ -34,6 +35,17 @@ export function CompanyCards({ items }: { items: CompanyCase[] }) {
 }
 export default function Companies({ id }: { id?: string }) {
   return id ? <CompanyDetail key={id} id={id} /> : <CompanyDirectory />
+}
+const pageLink = (q: string, page: number) => {
+  const params = new URLSearchParams(q ? { q } : {})
+  if (page > 1) params.set('page', String(page))
+  return '/companies' + (params.size ? '?' + params : '')
+}
+// ISO 날짜의 앞부분만 사용해 서버와 브라우저의 시간대와 관계없이 같은 날짜를 표시합니다.
+// 날짜가 없는 이전 자료도 서버 렌더링이 중단되지 않도록 빈 값을 허용합니다.
+const dateLabel = (iso?: string) => {
+  const [y, m, d] = (iso || '').slice(0, 10).split('-').map(Number)
+  return y && m && d ? `${y}년 ${m}월 ${d}일` : ''
 }
 // 서버에서 공개 업체만 받은 뒤 검색·페이지를 URL 쿼리로 유지해 직접 공유와 새로고침을 지원합니다.
 function CompanyDirectory() {
@@ -101,26 +113,29 @@ function CompanyDirectory() {
           </EmptyState>
         )}
         {pages > 1 && (
+          // 검색로봇이 2페이지 이후의 상세페이지까지 따라가도록 버튼 대신 실제 링크를 씁니다.
           <nav className="company-pagination" aria-label="업체 목록 페이지">
-            <button
-              className="icon-button"
-              aria-label="이전 페이지"
-              disabled={page === 1}
-              onClick={() => setParams({ ...(q ? { q } : {}), page: String(page - 1) })}
-            >
-              <ChevronLeft size={20} />
-            </button>
+            {page > 1 ? (
+              <Link className="icon-button" aria-label="이전 페이지" rel="prev" to={pageLink(q, page - 1)}>
+                <ChevronLeft size={20} />
+              </Link>
+            ) : (
+              <span className="icon-button is-disabled" aria-hidden="true">
+                <ChevronLeft size={20} />
+              </span>
+            )}
             <span>
               {page} / {pages}
             </span>
-            <button
-              className="icon-button"
-              aria-label="다음 페이지"
-              disabled={page === pages}
-              onClick={() => setParams({ ...(q ? { q } : {}), page: String(page + 1) })}
-            >
-              <ChevronRight size={20} />
-            </button>
+            {page < pages ? (
+              <Link className="icon-button" aria-label="다음 페이지" rel="next" to={pageLink(q, page + 1)}>
+                <ChevronRight size={20} />
+              </Link>
+            ) : (
+              <span className="icon-button is-disabled" aria-hidden="true">
+                <ChevronRight size={20} />
+              </span>
+            )}
           </nav>
         )}
       </section>
@@ -142,7 +157,7 @@ function CompanyDetail({ id }: { id: string }) {
       .then((value) => {
         if (active) {
           setItem(value)
-          document.title = `${value.name} | 법무법인 나란`
+          document.title = fullTitle(companyTitle(value))
         }
       })
       .catch((e) => {
@@ -201,6 +216,11 @@ function CompanyDetail({ id }: { id: string }) {
         </section>
       </>
     )
+  // 같은 유형을 먼저 보여주는 다른 공개 업체입니다. 상세페이지끼리 연결되어 검색로봇이 더 많은 업체를 찾습니다.
+  const related = companies
+    .filter((c) => c.id !== item.id)
+    .sort((a, b) => Number(b.service === item.service) - Number(a.service === item.service))
+    .slice(0, 4)
   return (
     <>
       <PageHero
@@ -216,6 +236,14 @@ function CompanyDetail({ id }: { id: string }) {
           <p className="eyebrow">CASE INFORMATION</p>
           <h2>관련 정보 안내</h2>
           <p className="company-detail-description">{item.description}</p>
+          {dateLabel(item.updatedAt || item.createdAt) && (
+            <p className="company-updated">
+              최종 업데이트{' '}
+              <time dateTime={item.updatedAt || item.createdAt}>
+                {dateLabel(item.updatedAt || item.createdAt)}
+              </time>
+            </p>
+          )}
           <div className="company-detail-cta">
             <h3>비슷한 상황을 겪고 계신가요?</h3>
             <p>현재 상황과 자료를 함께 살펴보겠습니다.</p>
@@ -241,6 +269,12 @@ function CompanyDetail({ id }: { id: string }) {
           <CompanyDocumentView document={item.document} />
         </section>
       ) : null}
+      {related.length > 0 && (
+        <section className="container company-related" aria-labelledby="company-related-title">
+          <h2 id="company-related-title">다른 업체 정보</h2>
+          <CompanyCards items={related} />
+        </section>
+      )}
       <div className="container company-back">
         <Link className="arrow-link" to="/companies">
           업체 목록으로 돌아가기

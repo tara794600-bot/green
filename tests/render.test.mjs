@@ -52,6 +52,30 @@ test('admin is noindex and sitemap lists only public routes', async () => {
   assert(!xml.includes('/admin'))
   assert(xml.includes('/cases/case-15'))
 })
+test('crawler files are served from the render route with absolute site URLs', async () => {
+  const robots = await fetch(base + '/robots.txt')
+  assert.equal(robots.headers.get('content-type'), 'text/plain; charset=utf-8')
+  const text = await robots.text()
+  assert.match(
+    text,
+    /User-agent: OAI-SearchBot\nAllow: \/api\/media\/\nDisallow: \/api\/\nDisallow: \/admin\nAllow: \//,
+  )
+  assert.match(text, /User-agent: Yeti\n/)
+  assert.match(text, /Sitemap: https:\/\/naran.example\/sitemap.xml/)
+  const rss = await fetch(base + '/api/render?path=/rss.xml')
+  assert.equal(rss.headers.get('content-type'), 'application/rss+xml; charset=utf-8')
+  assert.match(
+    await rss.text(),
+    /<item><title>[^<]+<\/title><link>https:\/\/naran.example\/(?:cases|guides|practice|lawyers)\//,
+  )
+  assert.match(await (await fetch(base + '/llms.txt')).text(), /^# 법무법인 나란/)
+  // INDEXNOW_KEY 설정 없이도 도메인에서 만든 키 파일을 제공합니다.
+  const key = createHash('sha256').update('naran-indexnow:naran.example').digest('hex').slice(0, 32)
+  assert.equal(await (await fetch(`${base}/${key}.txt`)).text(), key)
+  const home = await (await fetch(base + '/')).text()
+  assert.match(home, /<title>법무법인 나란 \| 금융사기 피해 상담<\/title>/)
+  assert.match(home, /"@type":"WebSite"/)
+})
 test('company visibility is reflected in server HTML, search results, and sitemap', async () => {
   const file = `.local/render-test-${randomUUID()}.json`
   process.env.NODE_ENV = 'test'
@@ -70,6 +94,22 @@ test('company visibility is reflected in server HTML, search results, and sitema
     let html = await (await fetch(base + '/companies/' + company.id)).text()
     assert.match(html, /<h1>서버검증업체<\/h1>/)
     assert.match(html, /<p class="company-detail-description">서버에서 렌더링한 상세 설명<\/p>/)
+    // 검색 결과에 쓰이는 제목·설명·대표 이미지가 업체마다 들어갑니다. 기본 설명 태그는 남지 않습니다.
+    const head = html.slice(0, html.indexOf('</head>'))
+    assert.match(head, /<title>서버검증업체 - 검증 유형 정보 \| 법무법인 나란<\/title>/)
+    assert.match(head, /<meta name="description" content="서버에서 렌더링한 상세 설명"\/>/)
+    assert.equal((head.match(/name="description"/g) || []).length, 1)
+    assert.equal((head.match(/property="og:description"/g) || []).length, 1)
+    assert.match(
+      head,
+      /<meta property="og:url" content="https:\/\/naran.example\/companies\/render-company"\/>/,
+    )
+    assert.match(
+      head,
+      /<meta property="og:image" content="https:\/\/naran.example\/images\/lawyer-seo.webp"\/>/,
+    )
+    assert.match(head, /<script type="application\/ld\+json" data-seo>.*"@type":"Article"/)
+    assert.match(html, /<time datetime="\d{4}-\d{2}-\d{2}T[^"]+">\d{4}년 \d{1,2}월 \d{1,2}일<\/time>/i)
     await put('companyCases', company.id, { ...company, document: testDocument })
     html = await (await fetch(base + '/companies/' + company.id)).text()
     assert.match(html, /<h2>상세 안내<\/h2>/)
@@ -91,16 +131,22 @@ test('company visibility is reflected in server HTML, search results, and sitema
     assert.doesNotMatch(html, /<script>alert\(1\)<\/script>/)
     await put('companyCases', company.id, { ...company, isSearchBlocked: true })
     html = await (await fetch(base + '/companies/' + company.id)).text()
-    assert.match(html, /content="index, follow"/)
+    assert.match(html, /<meta name="robots" content="index, follow, max-image-preview:large/)
     assert.match(html, /<h1>서버검증업체<\/h1>/)
     const search = await (await fetch(base + '/companies?q=' + encodeURIComponent(company.name))).text()
     assert(!search.includes('class="company-card"'))
+    assert.match(search, /<meta name="robots" content="noindex, follow"\/>/)
+    // 검색차단 업체는 피드·AI 안내에도 남고, 전화연결로 바꾸면 피드에서 빠집니다.
+    assert((await (await fetch(base + '/rss.xml')).text()).includes('/companies/' + company.id))
     await put('companyCases', company.id, { ...company, isPublic: false })
     html = await (await fetch(base + '/companies/' + company.id)).text()
     assert.match(html, /전화 상담으로 안내해 드립니다/)
     assert(!html.includes('class="company-document"'))
     assert((await (await fetch(base + '/sitemap.xml')).text()).includes('/companies/' + company.id))
-    assert.equal((await fetch(base + '/companies/not-found')).status, 404)
+    assert(!(await (await fetch(base + '/rss.xml')).text()).includes('/companies/' + company.id))
+    const missing = await fetch(base + '/companies/not-found')
+    assert.equal(missing.status, 404)
+    assert.equal(missing.headers.get('x-robots-tag'), 'noindex, nofollow')
   } finally {
     process.env.NODE_ENV = 'production'
     process.env.LOCAL_PREVIEW = 'false'

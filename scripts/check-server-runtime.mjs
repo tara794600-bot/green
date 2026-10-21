@@ -25,6 +25,8 @@ try {
   await writeFile(join(isolated, 'package.json'), '{"type":"module"}')
   const standalone = await import(pathToFileURL(join(isolated, 'dist-server/entry-server.js')).href)
   assert.equal(typeof standalone.render, 'function')
+  // RSS 본문 정제가 서버 함수에서 sanitize-html을 직접 불러오지 않도록 SSR 번들의 함수를 사용합니다.
+  assert.match(standalone.sanitizeContent(standalone.documentHtml(testDocument)), /<h2>상세 안내<\/h2>/)
   const html = standalone.render('/companies/runtime-check', {
     articles: [],
     settings: { phone: '1551-7202' },

@@ -57,6 +57,18 @@ test('Vercel API rewrite targets a concrete function and keeps the renderer sepa
   assert.equal((await response.json()).passwordConfigured, true)
 })
 
+test('crawler files reach the dynamic renderer instead of static files', async () => {
+  // Vercel은 정적 파일을 rewrite보다 먼저 제공하므로 public에 같은 이름의 파일이 있으면 안 됩니다.
+  const render = config.rewrites.find((rule) => rule.destination.startsWith('/api/render?path='))
+  const pattern = new RegExp('^' + render.source.slice(1) + '$')
+  for (const path of ['robots.txt', 'rss.xml', 'llms.txt', 'naran-indexnow-key.txt', 'companies/a'])
+    assert.match(path, pattern)
+  for (const path of ['robots.txt', 'rss.xml', 'llms.txt'])
+    await assert.rejects(readFile(new URL(`../public/${path}`, import.meta.url)))
+  const sitemap = config.rewrites.find((rule) => rule.source === '/sitemap.xml')
+  assert.equal(sitemap.destination, '/api/handler?__route=sitemap')
+})
+
 test('nested admin routes support login, session cookies, protected reads, and logout', async () => {
   let response = await fetch(rewritten('/api/admin/me'))
   assert.equal(response.status, 401)

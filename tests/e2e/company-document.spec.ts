@@ -185,6 +185,21 @@ test('blog editor writes styled text, quotes, photos, cards and videos that rend
   )
   await expect(article.locator('iframe')).toHaveAttribute('src', /youtube-nocookie/)
   await expect(article.locator('script, img[src="x"]')).toHaveCount(0)
+  // 브라우저 실행 후에도 검색엔진용 제목·설명·색인 설정이 업체별 값으로 유지됩니다.
+  await expect(page).toHaveTitle('본문 기능 검증 업체 - 자동 검증 자료 정보 | 법무법인 나란')
+  await expect(page.locator('meta[name="description"]')).toHaveAttribute(
+    'content',
+    /^자동 검증을 위한 업체입니다\. 자료 안내 중요한 내용을 강조합니다\./,
+  )
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', /^index, follow/)
+  await expect(page.locator('.company-updated time')).toHaveText(/^\d{4}년 \d{1,2}월 \d{1,2}일$/)
+  for (const [path, text] of [
+    ['/robots.txt', 'User-agent: OAI-SearchBot'],
+    ['/rss.xml', `/companies/${company.id}</link>`],
+    ['/llms.txt', `/companies/${company.id})`],
+    ['/sitemap.xml', `/companies/${company.id}</loc>`],
+  ])
+    expect(await (await page.request.get(path)).text()).toContain(text)
   await page.screenshot({ path: 'artifacts/company-document-desktop.png', fullPage: true })
   await page.setViewportSize({ width: 390, height: 844 })
   await page.screenshot({ path: 'artifacts/company-document-mobile.png', fullPage: true })
@@ -226,6 +241,10 @@ test('blog editor writes styled text, quotes, photos, cards and videos that rend
   await page.getByRole('button', { name: '본문 기능 검증 업체 삭제', exact: true }).click()
   await page.getByRole('button', { name: '삭제하기', exact: true }).click()
   await expect(page.getByRole('dialog')).toHaveCount(0)
+  // 삭제된 업체 주소는 브라우저에서도 색인 제외로 유지됩니다.
+  await page.goto(`/companies/${company.id}`)
+  await expect(page.getByRole('heading', { name: '업체 정보를 찾을 수 없습니다.' })).toBeVisible()
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex, nofollow')
   expect(errors).toEqual([])
 })
 
