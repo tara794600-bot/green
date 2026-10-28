@@ -242,6 +242,15 @@ form > label {
   color: var(--green);
   border-color: var(--line);
 }
+/* 카카오 브랜드 가이드의 노란 배경·검정 심볼 조합입니다. */
+.button.kakao {
+  background: #fee500;
+  color: rgba(0, 0, 0, 0.85);
+  border-color: #fee500;
+}
+.button.kakao:hover {
+  background: #f5dc00;
+}
 .button.small {
   font-size: 12px;
   min-height: 40px;

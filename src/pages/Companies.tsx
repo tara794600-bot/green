@@ -4,7 +4,7 @@ import { ArrowRight, ArrowUpRight, Phone, Search, ChevronLeft, ChevronRight } fr
 import { useContent } from '../lib/content-context'
 import { api, ApiError, errorMessage } from '../lib/api'
 import type { CompanyCase } from '../lib/types'
-import { PageHero, EmptyState, ErrorNotice } from '../components/ui'
+import { PageHero, EmptyState, ErrorNotice, KakaoIcon } from '../components/ui'
 import { ContactBanner } from '../components/Layout'
 import CompanyDocumentView from '../components/CompanyDocument'
 import { hasDocumentContent } from '../../shared/company-document.mjs'
@@ -244,24 +244,29 @@ function CompanyDetail({ id }: { id: string }) {
               </time>
             </p>
           )}
-          <div className="company-detail-cta">
-            <h3>비슷한 상황을 겪고 계신가요?</h3>
-            <p>현재 상황과 자료를 함께 살펴보겠습니다.</p>
-            <Link className="button full" to={`/consultation?company=${encodeURIComponent(item.name)}`}>
-              피해 사실 상담하기
-              <ArrowRight size={16} />
-            </Link>
-            <a className="button outline full" href={`tel:${settings.phone}`}>
-              <Phone size={16} />
-              {settings.phone}
+        </div>
+      </section>
+      <section className="container company-cta-banner" aria-labelledby="company-cta-title">
+        <div className="company-cta-copy">
+          <p className="eyebrow">CONSULTATION</p>
+          <h2 id="company-cta-title">비슷한 상황을 겪고 계신가요?</h2>
+          <p>현재 상황과 자료를 함께 살펴보겠습니다.</p>
+        </div>
+        <div className="company-cta-actions">
+          <Link className="button lime" to={`/consultation?company=${encodeURIComponent(item.name)}`}>
+            피해 사실 상담하기
+            <ArrowRight size={18} />
+          </Link>
+          <a className="button company-cta-phone" href={`tel:${settings.phone}`}>
+            <Phone size={18} />
+            {settings.phone}
+          </a>
+          {settings.kakaoUrl && (
+            <a className="button kakao" href={settings.kakaoUrl} target="_blank" rel="noreferrer">
+              <KakaoIcon />
+              카카오톡으로 문의하기
             </a>
-            {settings.kakaoUrl && (
-              <a className="text-button" href={settings.kakaoUrl} target="_blank" rel="noreferrer">
-                카카오톡으로 문의하기
-                <ArrowUpRight size={15} />
-              </a>
-            )}
-          </div>
+          )}
         </div>
       </section>
       {item.document && hasDocumentContent(item.document) ? (

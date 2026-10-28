@@ -165,3 +165,11 @@ export function ErrorNotice({ message, onRetry }: { message: string; onRetry?: (
     </div>
   )
 }
+// lucide에는 카카오톡 아이콘이 없어 말풍선 심볼을 직접 그립니다. 색은 버튼 글자색을 따릅니다.
+export function KakaoIcon({ size = 20 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M12 3C6.48 3 2 6.58 2 11c0 2.83 1.86 5.32 4.66 6.74l-.95 3.47c-.08.3.26.54.52.37l4.13-2.73c.54.07 1.08.11 1.64.11 5.52 0 10-3.58 10-8S17.52 3 12 3z" />
+    </svg>
+  )
+}

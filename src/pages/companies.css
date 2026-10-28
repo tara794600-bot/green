@@ -138,29 +138,48 @@
 .company-pagination .is-disabled {
   opacity: 0.3;
 }
-.company-detail-cta {
-  padding: 28px;
-  margin-top: 40px;
-  background: #f0f3e9;
-  border: 1px solid var(--line);
-}
-.company-detail-cta h3 {
-  font-size: 19px;
-  margin: 0 0 8px;
-}
-.company-detail-cta p {
-  font-size: 13px;
-  color: #7c8476;
-}
-.company-detail-cta .button {
-  margin-top: 12px;
-}
-.company-detail-cta .text-button {
+/* 상세 정보 바로 아래 전체 폭 상담 배너입니다. 하단 공통 배너와 같은 초록 바탕을 씁니다. */
+.company-cta-banner {
   display: flex;
-  justify-content: center;
+  align-items: center;
+  justify-content: space-between;
+  gap: 48px;
+  margin-bottom: 96px;
+  padding: 60px 64px;
+  border-radius: 4px;
+  background: var(--green);
+  color: #f0f0e4;
+}
+.company-cta-banner .eyebrow {
+  color: var(--lime);
+  margin-bottom: 18px;
+}
+.company-cta-banner h2 {
+  font-size: 32px;
+}
+.company-cta-copy > p:last-child {
+  margin-top: 10px;
+  font-size: 15px;
+  color: #c9d3c2;
+}
+.company-cta-actions {
+  display: grid;
   gap: 10px;
-  margin-top: 18px;
-  font-size: 13px;
+  flex-shrink: 0;
+  width: min(100%, 360px);
+}
+.company-cta-actions .button {
+  min-height: 56px;
+  gap: 10px;
+  font-size: 14px;
+}
+.company-cta-actions .company-cta-phone {
+  background: transparent;
+  color: #f0f0e4;
+  border-color: #52705e;
+}
+.company-cta-actions .company-cta-phone:hover {
+  background: rgba(255, 255, 255, 0.06);
 }
 .company-back {
   margin-bottom: 90px;
@@ -289,6 +308,15 @@
   .company-detail-grid {
     gap: 35px;
   }
+  .company-cta-banner {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 32px;
+    padding: 48px 40px;
+  }
+  .company-cta-actions {
+    width: 100%;
+  }
   .rolling-card {
     flex-basis: calc((100% - 24px) / 2);
   }
@@ -319,8 +347,19 @@
   .company-document {
     padding: 16px;
   }
-  .company-detail-cta {
-    padding: 22px;
+  .company-cta-banner {
+    margin-bottom: 60px;
+    padding: 36px 24px;
+  }
+  .company-cta-banner h2 {
+    font-size: 24px;
+    letter-spacing: -1px;
+  }
+  .company-cta-copy > p:last-child {
+    font-size: 13px;
+  }
+  .company-cta-actions .button {
+    min-height: 52px;
   }
   .company-back {
     margin-bottom: 60px;
