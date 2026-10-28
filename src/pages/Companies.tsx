@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { ArrowRight, ArrowUpRight, Phone, Search, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ArrowRight, ArrowUpRight, Clock, Phone, Search, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useContent } from '../lib/content-context'
 import { api, ApiError, errorMessage } from '../lib/api'
 import type { CompanyCase } from '../lib/types'
@@ -248,7 +248,10 @@ function CompanyDetail({ id }: { id: string }) {
       </section>
       <section className="container company-cta-banner" aria-labelledby="company-cta-title">
         <div className="company-cta-copy">
-          <p className="eyebrow">CONSULTATION</p>
+          <p className="company-cta-badge">
+            <Clock size={15} />
+            24시 무료 법률 상담
+          </p>
           <h2 id="company-cta-title">비슷한 상황을 겪고 계신가요?</h2>
           <p>현재 상황과 자료를 함께 살펴보겠습니다.</p>
         </div>

@@ -150,9 +150,17 @@
   background: var(--green);
   color: #f0f0e4;
 }
-.company-cta-banner .eyebrow {
-  color: var(--lime);
+.company-cta-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   margin-bottom: 18px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--lime);
+  color: var(--green);
+  font-size: 13px;
+  font-weight: 600;
 }
 .company-cta-banner h2 {
   font-size: 32px;
