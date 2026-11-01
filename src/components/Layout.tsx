@@ -28,6 +28,14 @@ const navigation = [
     ],
   },
 ]
+// 금융사기 피해자가 신고·조회에 바로 쓸 수 있는 공공기관 사이트입니다.
+const relatedSites = [
+  ['https://www.counterscam112.go.kr', '피싱안심SOS (보이스피싱 신고 1394)'],
+  ['https://ecrm.police.go.kr', '경찰청 사이버범죄 신고시스템'],
+  ['https://fine.fss.or.kr', '금융소비자 정보포털 파인'],
+  ['https://www.klac.or.kr', '대한법률구조공단'],
+  ['https://www.koreanbar.or.kr', '대한변호사협회'],
+]
 export function Brand() {
   return (
     <Link to="/" className="brand" aria-label="나란 홈">
@@ -155,6 +163,18 @@ export default function Layout() {
               <ArrowUp size={19} />
             </button>
           </div>
+          <nav className="footer-related" aria-label="피해 신고·조회 관련 기관">
+            <p>피해 신고·조회 관련 기관</p>
+            <ul>
+              {relatedSites.map(([href, label]) => (
+                <li key={href}>
+                  <a href={href} target="_blank" rel="noreferrer">
+                    {label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
           <div className="footer-bottom">
             <p>
               {settings.name} · 대표 {settings.representative} · 사업자등록번호 {settings.businessNumber}

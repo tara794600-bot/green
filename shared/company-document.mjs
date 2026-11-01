@@ -35,7 +35,10 @@ const fontFamily = new RegExp(
 )
 const youtubeEmbed = /^https:\/\/www\.youtube(?:-nocookie)?\.com\/embed\/[\w-]{6,20}(?:\?[\w=&%.-]*)?$/
 const dataAttributes = ['data-type', 'data-style', 'data-align', 'data-size', 'data-layout']
-export function sanitizeContent(html, { localImages = false } = {}) {
+// imageAlt를 주면 설명 없이 올린 사진에 '업체명 관련 이미지 n'을 붙여 이미지 검색이 어떤 업체 사진인지 알게 합니다.
+// 작성자가 쓴 설명은 그대로 두고, 저장 원본은 바꾸지 않으며 표시할 때만 적용합니다.
+export function sanitizeContent(html, { localImages = false, imageAlt = '' } = {}) {
+  let imageIndex = 0
   return sanitizeHtml(html, {
     allowedTags: [
       ...sanitizeHtml.defaults.allowedTags,
@@ -100,17 +103,20 @@ export function sanitizeContent(html, { localImages = false } = {}) {
           ...(Object.hasOwn(attribs, 'checked') ? { checked: '' } : {}),
         },
       }),
-      img: (tagName, attribs) => ({
-        tagName,
-        attribs: {
-          ...attribs,
-          src:
-            isImageUrl(attribs.src || '') || (localImages && /^blob:/.test(attribs.src || ''))
-              ? attribs.src
-              : '',
-          loading: 'lazy',
-        },
-      }),
+      img: (tagName, attribs) => {
+        const src =
+          isImageUrl(attribs.src || '') || (localImages && /^blob:/.test(attribs.src || ''))
+            ? attribs.src
+            : ''
+        // 허용하지 않아 제거되는 사진은 번호에서 빼 화면에 보이는 순서와 맞춥니다.
+        if (src) imageIndex += 1
+        const alt =
+          src && imageAlt && !(attribs.alt || '').trim() ? `${imageAlt} 관련 이미지 ${imageIndex}` : attribs.alt
+        return {
+          tagName,
+          attribs: { ...attribs, src, ...(alt === undefined ? {} : { alt }), loading: 'lazy' },
+        }
+      },
       // 동영상은 YouTube 퍼가기 주소만 허용하고, 재생에 필요한 속성은 서버가 고정값으로 다시 씁니다.
       iframe: (tagName, attribs) =>
         youtubeEmbed.test(attribs.src || '')

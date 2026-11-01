@@ -61,7 +61,8 @@ test('crawler files reach the dynamic renderer instead of static files', async (
   // Vercel은 정적 파일을 rewrite보다 먼저 제공하므로 public에 같은 이름의 파일이 있으면 안 됩니다.
   const render = config.rewrites.find((rule) => rule.destination.startsWith('/api/render?path='))
   const pattern = new RegExp('^' + render.source.slice(1) + '$')
-  for (const path of ['robots.txt', 'rss.xml', 'llms.txt', 'naran-indexnow-key.txt', 'companies/a'])
+  // 빈 경로는 홈(/)입니다. 홈 템플릿은 빌드에서 dist-server로 옮겨 정적 파일이 가로채지 않게 합니다.
+  for (const path of ['', 'robots.txt', 'rss.xml', 'llms.txt', 'naran-indexnow-key.txt', 'companies/a'])
     assert.match(path, pattern)
   for (const path of ['robots.txt', 'rss.xml', 'llms.txt'])
     await assert.rejects(readFile(new URL(`../public/${path}`, import.meta.url)))

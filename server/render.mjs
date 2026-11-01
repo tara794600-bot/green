@@ -23,7 +23,8 @@ export async function renderPage(req, res) {
     const data = await requestPublicData(pathname)
     const meta = pageMeta(pathname, search.toString(), data)
     const admin = pathname === '/admin' || pathname.startsWith('/admin/')
-    let template = (await readFile(resolve('dist/index.html'), 'utf8')).replace(defaultHead, '')
+    // 빌드가 dist/index.html을 dist-server로 옮깁니다. scripts/move-html-template.mjs 참고.
+    let template = (await readFile(resolve('dist-server/index.html'), 'utf8')).replace(defaultHead, '')
     if (!admin) {
       const { render } = await import('../dist-server/entry-server.js')
       template = template.replace(

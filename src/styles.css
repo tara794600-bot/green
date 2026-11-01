@@ -727,6 +727,34 @@ form > label {
   justify-content: center;
   margin-top: 8px;
 }
+.footer-related {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 24px;
+  border-bottom: 1px solid #52705e;
+  padding: 18px 0;
+  font-size: 11px;
+}
+.footer-related p {
+  color: #eef1e5;
+  font-weight: 700;
+}
+.footer-related ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 20px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.footer-related a {
+  color: #a4b3a0;
+}
+.footer-related a:hover {
+  color: #d8dfd0;
+  text-decoration: underline;
+}
 .footer-bottom {
   padding-top: 24px;
   display: flex;

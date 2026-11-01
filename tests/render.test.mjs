@@ -4,7 +4,7 @@ import { createServer } from 'node:http'
 import { renderPage, sitemap } from '../server/render.mjs'
 import { put } from '../server/store.mjs'
 import { randomUUID, randomBytes, createCipheriv, createHash } from 'node:crypto'
-import { unlink } from 'node:fs/promises'
+import { access, unlink } from 'node:fs/promises'
 import { legacyDocument, testDocument } from './fixtures/company-document.mjs'
 
 // 빌드된 SSR 번들을 사용합니다. npm run build 후 실행해 JS 실행 전 HTML·메타정보·404를 확인합니다.
@@ -75,6 +75,76 @@ test('crawler files are served from the render route with absolute site URLs', a
   const home = await (await fetch(base + '/')).text()
   assert.match(home, /<title>법무법인 나란 \| 금융사기 피해 상담<\/title>/)
   assert.match(home, /"@type":"WebSite"/)
+})
+test('home is server-rendered because no static index.html shadows the Vercel rewrite', async () => {
+  // Vercel은 rewrite보다 정적 파일을 먼저 제공하므로 dist/index.html이 있으면 홈이 빈 템플릿으로 나갑니다.
+  await assert.rejects(access(new URL('../dist/index.html', import.meta.url)))
+  await access(new URL('../dist-server/index.html', import.meta.url))
+  const html = await (await fetch(base + '/')).text()
+  assert.match(html, /<link rel="canonical" href="https:\/\/naran.example\/"/)
+  assert.doesNotMatch(html, /<div id="root"><\/div>/)
+})
+test('company detail links nearby companies of the same type and names undescribed images', async () => {
+  const file = `.local/render-test-${randomUUID()}.json`
+  process.env.NODE_ENV = 'test'
+  process.env.LOCAL_PREVIEW = 'true'
+  process.env.LOCAL_DATA_FILE = file
+  const company = (id, service, day, extra = {}) => ({
+    id,
+    name: `${id} 업체`,
+    service,
+    description: `${id} 설명`,
+    image: '/images/lawyer-seo.webp',
+    createdAt: new Date(Date.UTC(2026, 9, day)).toISOString(),
+    ...extra,
+  })
+  try {
+    for (const record of [
+      company('current', '투자사기', 15, {
+        document: {
+          version: 2,
+          html: '<p>본문</p><img src="/images/lawyer-seo.webp"><img src="/images/lawyer-choi.webp" alt="직접 쓴 설명">',
+        },
+      }),
+      company('same-near', '투자사기', 16),
+      company('same-mid', '투자사기', 10),
+      company('same-far', '투자사기', 1),
+      company('same-hidden', '투자사기', 14, { isPublic: false }),
+      company('same-blocked', '투자사기', 14, { isSearchBlocked: true }),
+      company('other-near', '부업사기', 15),
+      company('other-mid', '부업사기', 20),
+      company('other-far', '로맨스스캠', 2),
+      company('other-farthest', '로맨스스캠', 31),
+    ])
+      await put('companyCases', record.id, record)
+    const html = await (await fetch(base + '/companies/current')).text()
+    // 같은 유형을 등록일이 가까운 순서로 먼저, 이어서 다른 유형을 6곳까지 연결합니다.
+    const related = html.slice(html.indexOf('company-related-title'), html.indexOf('company-back'))
+    assert.deepEqual(
+      [...related.matchAll(/href="\/companies\/([^"?]+)"/g)].map((match) => match[1]),
+      ['same-near', 'same-mid', 'same-far', 'other-near', 'other-mid', 'other-far'],
+    )
+    const body = html.slice(html.indexOf('company-rich-document'))
+    assert.match(body, /alt="current 업체 관련 이미지 1"/)
+    assert.match(body, /alt="직접 쓴 설명"/)
+    assert.doesNotMatch(body, /관련 이미지 2/)
+    // 상세 HTML에는 이 업체의 본문과 연결할 업체만 담고, 목록 데이터에는 본문을 넣지 않습니다.
+    const bootstrap = (page) =>
+      JSON.parse(page.match(/<script id="naran-bootstrap" type="application\/json">([\s\S]*?)<\/script>/)[1])
+    const detail = bootstrap(html)
+    assert.equal(detail.path, '/companies/current')
+    assert.equal(detail.companies.length, 6)
+    assert(detail.selectedCompany.document)
+    const list = bootstrap(await (await fetch(base + '/companies')).text())
+    assert.equal(list.path, '/companies')
+    assert.equal(list.companies.length, 8)
+    assert(list.companies.every((c) => !('document' in c)))
+    assert.deepEqual(bootstrap(await (await fetch(base + '/cases')).text()).companies, [])
+  } finally {
+    process.env.NODE_ENV = 'production'
+    process.env.LOCAL_PREVIEW = 'false'
+    await unlink(file).catch(() => {})
+  }
 })
 test('company visibility is reflected in server HTML, search results, and sitemap', async () => {
   const file = `.local/render-test-${randomUUID()}.json`

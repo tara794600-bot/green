@@ -41,7 +41,10 @@ export const documentFonts: DocumentFont[]
 export const companyDocumentSchema: z.ZodType<CompanyDocument>
 export function isImageUrl(value: string): boolean
 export function htmlImageSources(html: string): string[]
-export function sanitizeContent(html: string, options?: { localImages?: boolean }): string
+export function sanitizeContent(
+  html: string,
+  options?: { localImages?: boolean; imageAlt?: string },
+): string
 export function fontStylesheet(html: string): string
 export function documentHtml(document: CompanyDocument | undefined): string
 export function hasDocumentContent(document: CompanyDocument | undefined): boolean

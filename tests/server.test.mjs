@@ -164,13 +164,17 @@ test('company CRUD and all three visibility settings match the reference site', 
   const created = await request('/admin/companies', 'POST', companyPayload)
   assert.equal(created.response.status, 201)
   companyId = created.data.id
-  assert((await request('/content')).data.companies.some((r) => r.id === companyId))
+  // 업체 목록은 목록 경로의 데이터에만 담깁니다.
+  assert((await request('/content?path=/companies')).data.companies.some((r) => r.id === companyId))
+  assert.deepEqual((await request('/content')).data.companies, [])
   for (const visibility of ['phone', 'searchBlocked']) {
     assert.equal(
       (await request(`/admin/companies/${companyId}`, 'PATCH', { visibility })).response.status,
       200,
     )
-    assert(!(await request('/content')).data.companies.some((r) => r.id === companyId))
+    assert(
+      !(await request('/content?path=/companies')).data.companies.some((r) => r.id === companyId),
+    )
     const detail = await request(`/companies/${companyId}`)
     assert.equal(detail.response.status, 200)
     assert.equal(detail.data.visibility, visibility)

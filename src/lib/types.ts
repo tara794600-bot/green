@@ -94,7 +94,10 @@ export type PublicData = {
   articles: Article[]
   settings: Settings
   rollingCases: RollingCase[]
+  // 경로에 필요한 업체만 담깁니다(목록: 본문을 뺀 전체 공개 업체, 상세: 연결할 업체, 그 외: 빈 배열).
   companies: CompanyCase[]
+  // 이 데이터를 만든 경로입니다. 화면이 현재 경로의 데이터인지 확인할 때 씁니다.
+  path?: string
   powerlinkPrefix?: string
   selectedCompany?: CompanyCase | null
   landing?: LandingData | null

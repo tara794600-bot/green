@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { ArrowRight, ArrowUpRight, Clock, Phone, Search, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useContent } from '../lib/content-context'
@@ -9,6 +9,7 @@ import { ContactBanner } from '../components/Layout'
 import CompanyDocumentView from '../components/CompanyDocument'
 import { hasDocumentContent } from '../../shared/company-document.mjs'
 import { companyTitle, fullTitle } from '../../shared/seo.mjs'
+import { relatedCompanies } from '../../shared/related-companies.mjs'
 import './companies.css'
 
 export function CompanyCards({ items }: { items: CompanyCase[] }) {
@@ -47,10 +48,23 @@ const dateLabel = (iso?: string) => {
   const [y, m, d] = (iso || '').slice(0, 10).split('-').map(Number)
   return y && m && d ? `${y}년 ${m}월 ${d}일` : ''
 }
+// 서버는 경로마다 필요한 업체만 보냅니다(목록: 전체 업체, 상세: 연결할 업체, 그 외: 없음).
+// 다른 화면에서 이동해 와 이 경로의 데이터가 아니면 App에 현재 경로의 데이터를 한 번 다시 요청합니다.
+function useRouteContent(path: string, ready: boolean) {
+  const requested = useRef('')
+  useEffect(() => {
+    if (ready || requested.current === path) return
+    requested.current = path
+    window.dispatchEvent(new Event('content-updated'))
+  }, [path, ready])
+}
 // 서버에서 공개 업체만 받은 뒤 검색·페이지를 URL 쿼리로 유지해 직접 공유와 새로고침을 지원합니다.
 function CompanyDirectory() {
-  const { companies = [] } = useContent(),
+  const content = useContent(),
     [params, setParams] = useSearchParams()
+  const ready = content.path === '/companies'
+  useRouteContent('/companies', ready)
+  const companies = ready ? content.companies : []
   const q = params.get('q') || ''
   const [input, setInput] = useState(q)
   const filtered = companies.filter((c) =>
@@ -84,9 +98,13 @@ function CompanyDirectory() {
           <button className="button small">검색</button>
         </form>
         <div className="company-results">
-          <p>
-            {q ? `“${q}” 검색 결과` : '등록된 업체 정보'} <strong>{filtered.length}</strong>건
-          </p>
+          {ready ? (
+            <p>
+              {q ? `“${q}” 검색 결과` : '등록된 업체 정보'} <strong>{filtered.length}</strong>건
+            </p>
+          ) : (
+            <p role="status">업체 정보를 불러오는 중입니다…</p>
+          )}
           {q && (
             <button
               className="text-button"
@@ -99,7 +117,7 @@ function CompanyDirectory() {
             </button>
           )}
         </div>
-        {filtered.length ? (
+        {!ready ? null : filtered.length ? (
           <CompanyCards items={filtered.slice((page - 1) * 40, page * 40)} />
         ) : (
           <EmptyState
@@ -145,7 +163,10 @@ function CompanyDirectory() {
 }
 // SSR 상세 데이터를 먼저 쓰고 API로 갱신합니다. 내부 검색에서 숨긴 업체도 직접 주소로 조회합니다.
 function CompanyDetail({ id }: { id: string }) {
-  const { selectedCompany, companies = [], settings } = useContent()
+  const { selectedCompany, companies = [], settings, path } = useContent()
+  // 연결할 업체는 전체 목록이나 이 상세 경로의 데이터로만 계산합니다. 다른 상세의 연결 목록을 쓰지 않습니다.
+  const relatedReady = path === '/companies' || path === `/companies/${id}`
+  useRouteContent(`/companies/${id}`, relatedReady)
   const [item, setItem] = useState<CompanyCase | null>(
     selectedCompany?.id === id ? selectedCompany : companies.find((c) => c.id === id) || null,
   )
@@ -216,11 +237,7 @@ function CompanyDetail({ id }: { id: string }) {
         </section>
       </>
     )
-  // 같은 유형을 먼저 보여주는 다른 공개 업체입니다. 상세페이지끼리 연결되어 검색로봇이 더 많은 업체를 찾습니다.
-  const related = companies
-    .filter((c) => c.id !== item.id)
-    .sort((a, b) => Number(b.service === item.service) - Number(a.service === item.service))
-    .slice(0, 4)
+  const related = relatedReady ? relatedCompanies(companies, item) : []
   return (
     <>
       <PageHero
@@ -274,7 +291,7 @@ function CompanyDetail({ id }: { id: string }) {
       </section>
       {item.document && hasDocumentContent(item.document) ? (
         <section className="container company-rich-section" aria-label="업체 상세 본문">
-          <CompanyDocumentView document={item.document} />
+          <CompanyDocumentView document={item.document} imageAlt={item.name} />
         </section>
       ) : null}
       {related.length > 0 && (

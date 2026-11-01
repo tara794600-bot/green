@@ -15,6 +15,7 @@ import { companySchema, rollingSchema, HttpError, parse } from './validation.mjs
 import { deleteUnusedImage } from './media.mjs'
 import { documentImageUrls } from '../shared/company-document-schema.mjs'
 import { companyUrls, notifySearchEngines } from './seo.mjs'
+import { relatedCompanies } from '../shared/related-companies.mjs'
 
 // 광고 경로는 한 단계로 제한하고 기존 공개·관리자·API 경로와 충돌하지 않도록 합니다.
 export function powerlinkPrefix() {
@@ -204,11 +205,22 @@ export async function landingData(token) {
     .slice(0, 8)
   return { token, keyword, companies }
 }
+// 목록·카드에는 본문이 필요 없습니다. 본문은 상세 조회(selectedCompany)로만 보냅니다.
+const listItem = (company) => ({ ...company, document: undefined })
 // SSR과 브라우저 콘텐츠 API가 같은 기본 데이터와 경로별 상세 데이터를 사용하도록 모읍니다.
+// 업체 정보는 경로에 필요한 만큼만 보냅니다. 모든 화면에 전체 업체와 본문을 넣으면 상세페이지 HTML이 1MB에 가까워집니다.
+// 목록은 검색·페이지 이동에 쓸 전체 업체, 상세는 아래에 연결할 업체만 받고 다른 화면은 받지 않습니다.
+// 브라우저는 path로 현재 경로의 데이터인지 확인하고, 다른 화면에서 이동해 오면 다시 요청합니다.
 export async function requestPublicData(pathname = '/') {
-  const data = { ...(await publicData()), powerlinkPrefix: powerlinkPrefix() }
-  if (/^\/companies\/[^/]+$/.test(pathname))
-    data.selectedCompany = await companyDetail(pathname.split('/')[2])
+  const { companies, ...base } = await publicData()
+  const route = pathname.replace(/(.)\/+$/, '$1')
+  const data = { ...base, companies: [], path: route, powerlinkPrefix: powerlinkPrefix() }
+  if (route === '/companies') data.companies = companies.map(listItem)
+  if (/^\/companies\/[^/]+$/.test(route)) {
+    data.selectedCompany = await companyDetail(route.split('/')[2])
+    if (data.selectedCompany && data.selectedCompany.visibility !== 'phone')
+      data.companies = relatedCompanies(companies, data.selectedCompany).map(listItem)
+  }
   if (pathname.startsWith(data.powerlinkPrefix))
     data.landing = await landingData(pathname.slice(data.powerlinkPrefix.length))
   return data
