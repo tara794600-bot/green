@@ -172,9 +172,7 @@ test('company CRUD and all three visibility settings match the reference site', 
       (await request(`/admin/companies/${companyId}`, 'PATCH', { visibility })).response.status,
       200,
     )
-    assert(
-      !(await request('/content?path=/companies')).data.companies.some((r) => r.id === companyId),
-    )
+    assert(!(await request('/content?path=/companies')).data.companies.some((r) => r.id === companyId))
     const detail = await request(`/companies/${companyId}`)
     assert.equal(detail.response.status, 200)
     assert.equal(detail.data.visibility, visibility)
@@ -185,6 +183,14 @@ test('company CRUD and all three visibility settings match the reference site', 
   })
   assert.equal(updated.data.description, '수정한 검증 설명')
   assert.equal(updated.data.visibility, 'public')
+  // 상세 주소는 업체명입니다. 주소가 같아지는 이름은 다른 업체로 저장할 수 없습니다.
+  const byName = await request('/companies/' + encodeURIComponent('검증코인-업체'))
+  assert.equal(byName.data.id, companyId)
+  assert.equal(
+    (await request('/admin/companies', 'POST', { ...companyPayload, name: '검증코인  업체' })).response
+      .status,
+    409,
+  )
   assert.equal(
     (await request(`/admin/companies/${companyId}`, 'PATCH', { visibility: 'invalid' })).response.status,
     400,

@@ -45,7 +45,11 @@ export const ROBOTS_SEARCH: string
 export const pageNames: Record<string, string>
 export const sectionNames: Record<string, string>
 export function articlePath(article: ArticleLike): string
-export function companyPath(company: { id: string }): string
+export function companySlug(name?: string): string
+export function companyPath(company: { name: string }): string
+export function decodePathSegment(value?: string): string
+export function isCompanyPath(company: { name: string }, segment: string): boolean
+export function findCompany<T extends { id: string; name: string }>(companies: T[], segment: string): T | null
 export function plainText(html?: string): string
 export function documentText(document?: CompanyDocument): string
 export function summarize(text: string, max?: number): string

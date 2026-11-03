@@ -28,6 +28,7 @@ import {
 import { EmptyState, ErrorNotice, Modal } from '../components/ui'
 import CompanyDocumentEditor from '../components/CompanyDocumentEditor'
 import { clearDocumentDraft } from '../lib/company-document'
+import { companyPath } from '../../shared/seo.mjs'
 import {
   companyDocumentSchema,
   htmlImageSources,
@@ -323,7 +324,7 @@ export default function AdminReference({ kind }: { kind: Kind }) {
                           {'name' in row && (
                             <Link
                               className="icon-button"
-                              to={`/companies/${row.id}`}
+                              to={companyPath(row)}
                               target="_blank"
                               aria-label={`${row.name} 상세페이지 보기`}
                             >

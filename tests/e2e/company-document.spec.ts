@@ -1,5 +1,6 @@
 // 본문 편집 → 저장 → 공개 상세 표시를 연결해 검증하며 스크립트 실행·브라우저 오류도 감시합니다.
 import { expect, test, type Page } from '@playwright/test'
+import { companyPath } from '../../shared/seo.mjs'
 
 async function login(page: Page) {
   await page.goto('/admin/companies')
@@ -195,9 +196,9 @@ test('blog editor writes styled text, quotes, photos, cards and videos that rend
   await expect(page.locator('.company-updated time')).toHaveText(/^\d{4}년 \d{1,2}월 \d{1,2}일$/)
   for (const [path, text] of [
     ['/robots.txt', 'User-agent: OAI-SearchBot'],
-    ['/rss.xml', `/companies/${company.id}</link>`],
-    ['/llms.txt', `/companies/${company.id})`],
-    ['/sitemap.xml', `/companies/${company.id}</loc>`],
+    ['/rss.xml', `${companyPath(company)}</link>`],
+    ['/llms.txt', `${companyPath(company)})`],
+    ['/sitemap.xml', `${companyPath(company)}</loc>`],
   ])
     expect(await (await page.request.get(path)).text()).toContain(text)
   await page.screenshot({ path: 'artifacts/company-document-desktop.png', fullPage: true })

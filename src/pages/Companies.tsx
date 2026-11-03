@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowRight, ArrowUpRight, Clock, Phone, Search, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useContent } from '../lib/content-context'
 import { api, ApiError, errorMessage } from '../lib/api'
@@ -8,7 +8,14 @@ import { PageHero, EmptyState, ErrorNotice, KakaoIcon } from '../components/ui'
 import { ContactBanner } from '../components/Layout'
 import CompanyDocumentView from '../components/CompanyDocument'
 import { hasDocumentContent } from '../../shared/company-document.mjs'
-import { companyTitle, fullTitle } from '../../shared/seo.mjs'
+import {
+  companyPath,
+  companyTitle,
+  decodePathSegment,
+  findCompany,
+  fullTitle,
+  isCompanyPath,
+} from '../../shared/seo.mjs'
 import { relatedCompanies } from '../../shared/related-companies.mjs'
 import './companies.css'
 
@@ -16,7 +23,7 @@ export function CompanyCards({ items }: { items: CompanyCase[] }) {
   return (
     <div className="company-grid">
       {items.map((item) => (
-        <Link className="company-card" key={item.id} to={`/companies/${item.id}`}>
+        <Link className="company-card" key={item.id} to={companyPath(item)}>
           <div className="company-card-image">
             <img src={item.image} alt={`${item.name} 관련 자료`} loading="lazy" />
           </div>
@@ -162,23 +169,28 @@ function CompanyDirectory() {
   )
 }
 // SSR 상세 데이터를 먼저 쓰고 API로 갱신합니다. 내부 검색에서 숨긴 업체도 직접 주소로 조회합니다.
+// id는 주소의 업체명 조각이며, 이전 ID 주소로 들어오면 업체명 주소로 바꿉니다.
 function CompanyDetail({ id }: { id: string }) {
   const { selectedCompany, companies = [], settings, path } = useContent()
+  const navigate = useNavigate()
   // 연결할 업체는 전체 목록이나 이 상세 경로의 데이터로만 계산합니다. 다른 상세의 연결 목록을 쓰지 않습니다.
-  const relatedReady = path === '/companies' || path === `/companies/${id}`
+  const relatedReady =
+    path === '/companies' ||
+    (!!path?.startsWith('/companies/') && decodePathSegment(path.slice(11)) === decodePathSegment(id))
   useRouteContent(`/companies/${id}`, relatedReady)
   const [item, setItem] = useState<CompanyCase | null>(
-    selectedCompany?.id === id ? selectedCompany : companies.find((c) => c.id === id) || null,
+    findCompany(selectedCompany ? [selectedCompany, ...companies] : companies, id),
   )
   const [loading, setLoading] = useState(selectedCompany === undefined && !item),
     [error, setError] = useState('')
   useEffect(() => {
     let active = true
-    api<CompanyCase>(`/companies/${encodeURIComponent(id)}`)
+    api<CompanyCase>(`/companies/${encodeURIComponent(decodePathSegment(id))}`)
       .then((value) => {
         if (active) {
           setItem(value)
           document.title = fullTitle(companyTitle(value))
+          if (!isCompanyPath(value, id)) navigate(companyPath(value), { replace: true })
         }
       })
       .catch((e) => {
@@ -193,7 +205,7 @@ function CompanyDetail({ id }: { id: string }) {
     return () => {
       active = false
     }
-  }, [id])
+  }, [id, navigate])
   if (loading)
     return (
       <section className="section container">

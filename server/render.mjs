@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { requestPublicData } from './reference.mjs'
 import { headTags, serveSeoFile, siteOrigin } from './seo.mjs'
-import { pageMeta } from '../shared/seo.mjs'
+import { companyPath, isCompanyPath, pageMeta } from '../shared/seo.mjs'
 
 // index.html의 기본 제목·설명·robots·og 태그입니다. 여러 줄로 정렬된 태그도 지우도록 공백을 허용합니다.
 const defaultHead =
@@ -21,6 +21,14 @@ export async function renderPage(req, res) {
     const search = new URLSearchParams(url.search)
     if (rewritten || req.query?.path) search.delete('path')
     const data = await requestPublicData(pathname)
+    // 이전 ID 주소(예: /companies/case1)는 검색 색인이 옮겨가도록 업체명 주소로 영구 이동합니다.
+    const segment = pathname.match(/^\/companies\/([^/]+)\/?$/)?.[1]
+    if (segment && data.selectedCompany && !isCompanyPath(data.selectedCompany, segment)) {
+      res.statusCode = 301
+      res.setHeader('Location', companyPath(data.selectedCompany) + (search.size ? '?' + search : ''))
+      res.setHeader('Cache-Control', 'no-store')
+      return res.end()
+    }
     const meta = pageMeta(pathname, search.toString(), data)
     const admin = pathname === '/admin' || pathname.startsWith('/admin/')
     // 빌드가 dist/index.html을 dist-server로 옮깁니다. scripts/move-html-template.mjs 참고.

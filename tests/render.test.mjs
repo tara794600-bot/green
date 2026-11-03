@@ -6,6 +6,7 @@ import { put } from '../server/store.mjs'
 import { randomUUID, randomBytes, createCipheriv, createHash } from 'node:crypto'
 import { access, unlink } from 'node:fs/promises'
 import { legacyDocument, testDocument } from './fixtures/company-document.mjs'
+import { companyPath } from '../shared/seo.mjs'
 
 // 빌드된 SSR 번들을 사용합니다. npm run build 후 실행해 JS 실행 전 HTML·메타정보·404를 확인합니다.
 let server, base
@@ -117,12 +118,18 @@ test('company detail links nearby companies of the same type and names undescrib
       company('other-farthest', '로맨스스캠', 31),
     ])
       await put('companyCases', record.id, record)
-    const html = await (await fetch(base + '/companies/current')).text()
+    // 이전 ID 주소는 업체명 주소로 영구 이동합니다.
+    const moved = await fetch(base + '/companies/current', { redirect: 'manual' })
+    assert.equal(moved.status, 301)
+    assert.equal(moved.headers.get('location'), companyPath({ name: 'current 업체' }))
+    const html = await (await fetch(base + companyPath({ name: 'current 업체' }))).text()
     // 같은 유형을 등록일이 가까운 순서로 먼저, 이어서 다른 유형을 6곳까지 연결합니다.
     const related = html.slice(html.indexOf('company-related-title'), html.indexOf('company-back'))
     assert.deepEqual(
       [...related.matchAll(/href="\/companies\/([^"?]+)"/g)].map((match) => match[1]),
-      ['same-near', 'same-mid', 'same-far', 'other-near', 'other-mid', 'other-far'],
+      ['same-near', 'same-mid', 'same-far', 'other-near', 'other-mid', 'other-far'].map((id) =>
+        encodeURIComponent(`${id}-업체`),
+      ),
     )
     const body = html.slice(html.indexOf('company-rich-document'))
     assert.match(body, /alt="current 업체 관련 이미지 1"/)
@@ -132,7 +139,7 @@ test('company detail links nearby companies of the same type and names undescrib
     const bootstrap = (page) =>
       JSON.parse(page.match(/<script id="naran-bootstrap" type="application\/json">([\s\S]*?)<\/script>/)[1])
     const detail = bootstrap(html)
-    assert.equal(detail.path, '/companies/current')
+    assert.equal(detail.path, companyPath({ name: 'current 업체' }))
     assert.equal(detail.companies.length, 6)
     assert(detail.selectedCompany.document)
     const list = bootstrap(await (await fetch(base + '/companies')).text())
@@ -161,7 +168,8 @@ test('company visibility is reflected in server HTML, search results, and sitema
       createdAt: new Date().toISOString(),
     }
     await put('companyCases', company.id, company)
-    let html = await (await fetch(base + '/companies/' + company.id)).text()
+    const detailPath = companyPath(company)
+    let html = await (await fetch(base + detailPath)).text()
     assert.match(html, /<h1>서버검증업체<\/h1>/)
     assert.match(html, /<p class="company-detail-description">서버에서 렌더링한 상세 설명<\/p>/)
     // 검색 결과에 쓰이는 제목·설명·대표 이미지가 업체마다 들어갑니다. 기본 설명 태그는 남지 않습니다.
@@ -170,10 +178,7 @@ test('company visibility is reflected in server HTML, search results, and sitema
     assert.match(head, /<meta name="description" content="서버에서 렌더링한 상세 설명"\/>/)
     assert.equal((head.match(/name="description"/g) || []).length, 1)
     assert.equal((head.match(/property="og:description"/g) || []).length, 1)
-    assert.match(
-      head,
-      /<meta property="og:url" content="https:\/\/naran.example\/companies\/render-company"\/>/,
-    )
+    assert(head.includes(`<meta property="og:url" content="https://naran.example${detailPath}"/>`))
     assert.match(
       head,
       /<meta property="og:image" content="https:\/\/naran.example\/images\/lawyer-seo.webp"\/>/,
@@ -181,7 +186,7 @@ test('company visibility is reflected in server HTML, search results, and sitema
     assert.match(head, /<script type="application\/ld\+json" data-seo>.*"@type":"Article"/)
     assert.match(html, /<time datetime="\d{4}-\d{2}-\d{2}T[^"]+">\d{4}년 \d{1,2}월 \d{1,2}일<\/time>/i)
     await put('companyCases', company.id, { ...company, document: testDocument })
-    html = await (await fetch(base + '/companies/' + company.id)).text()
+    html = await (await fetch(base + detailPath)).text()
     assert.match(html, /<h2>상세 안내<\/h2>/)
     assert.match(html, /<blockquote data-style="postit"><p><strong>HTML 안내<\/strong><\/p><\/blockquote>/)
     assert.match(html, /<mark data-color="#fff3a3" style="background-color:#fff3a3;color:inherit">/)
@@ -194,26 +199,26 @@ test('company visibility is reflected in server HTML, search results, and sitema
     )
     // 이전 블록 형식 본문도 서버에서 HTML로 바꿔 표시합니다.
     await put('companyCases', company.id, { ...company, document: legacyDocument })
-    html = await (await fetch(base + '/companies/' + company.id)).text()
+    html = await (await fetch(base + detailPath)).text()
     assert.match(html, /<h2>이전 안내<\/h2>/)
     assert.match(html, /<strong>128건<\/strong>/)
     assert.match(html, /<strong>이전 HTML 안내<\/strong>/)
     assert.doesNotMatch(html, /<script>alert\(1\)<\/script>/)
     await put('companyCases', company.id, { ...company, isSearchBlocked: true })
-    html = await (await fetch(base + '/companies/' + company.id)).text()
+    html = await (await fetch(base + detailPath)).text()
     assert.match(html, /<meta name="robots" content="index, follow, max-image-preview:large/)
     assert.match(html, /<h1>서버검증업체<\/h1>/)
     const search = await (await fetch(base + '/companies?q=' + encodeURIComponent(company.name))).text()
     assert(!search.includes('class="company-card"'))
     assert.match(search, /<meta name="robots" content="noindex, follow"\/>/)
     // 검색차단 업체는 피드·AI 안내에도 남고, 전화연결로 바꾸면 피드에서 빠집니다.
-    assert((await (await fetch(base + '/rss.xml')).text()).includes('/companies/' + company.id))
+    assert((await (await fetch(base + '/rss.xml')).text()).includes(detailPath))
     await put('companyCases', company.id, { ...company, isPublic: false })
-    html = await (await fetch(base + '/companies/' + company.id)).text()
+    html = await (await fetch(base + detailPath)).text()
     assert.match(html, /전화 상담으로 안내해 드립니다/)
     assert(!html.includes('class="company-document"'))
-    assert((await (await fetch(base + '/sitemap.xml')).text()).includes('/companies/' + company.id))
-    assert(!(await (await fetch(base + '/rss.xml')).text()).includes('/companies/' + company.id))
+    assert((await (await fetch(base + '/sitemap.xml')).text()).includes(detailPath))
+    assert(!(await (await fetch(base + '/rss.xml')).text()).includes(detailPath))
     const missing = await fetch(base + '/companies/not-found')
     assert.equal(missing.status, 404)
     assert.equal(missing.headers.get('x-robots-tag'), 'noindex, nofollow')

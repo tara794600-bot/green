@@ -344,7 +344,11 @@ export const indexNowEndpoints = [
 // 상세 주소와 그 상세가 걸린 목록 주소를 함께 알립니다.
 export const articleUrls = (article) =>
   sectionNames[article.kind] ? [articlePath(article), articlePath(article).replace(/\/[^/]+$/, '')] : ['/faq']
-export const companyUrls = (id) => [companyPath({ id }), '/companies']
+// 업체명이 바뀌면 이전 주소와 새 주소를 함께 알립니다.
+export const companyUrls = (...companies) => [
+  ...companies.filter((c) => c?.name).map(companyPath),
+  '/companies',
+]
 // 저장을 막지 않도록 실패는 기록만 하고, 응답이 늦어도 3초 안에 끝냅니다.
 export async function notifySearchEngines(paths) {
   if (!indexNowEnabled() || !paths.length) return

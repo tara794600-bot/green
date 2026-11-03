@@ -14,7 +14,16 @@ import {
   sitemapXml,
   structuredData,
 } from '../server/seo.mjs'
-import { pageMeta, ROBOTS_INDEX, ROBOTS_NOINDEX, ROBOTS_SEARCH } from '../shared/seo.mjs'
+import {
+  companyPath,
+  companySlug,
+  findCompany,
+  isCompanyPath,
+  pageMeta,
+  ROBOTS_INDEX,
+  ROBOTS_NOINDEX,
+  ROBOTS_SEARCH,
+} from '../shared/seo.mjs'
 import seed from '../shared/content.json' with { type: 'json' }
 
 const origin = 'https://naran.example'
@@ -91,7 +100,7 @@ test('company detail meta uses the company name, type, summary and canonical URL
     '리딩방 운영 방식과 입금 요구 내용을 정리했습니다. 상세 안내 출금 지연 사례를 확인했습니다.',
   )
   assert.equal(meta.robots, ROBOTS_INDEX)
-  assert.equal(meta.canonicalPath, '/companies/seo-company')
+  assert.equal(meta.canonicalPath, '/companies/' + encodeURIComponent('검증코인'))
   assert.equal(meta.type, 'article')
   assert.deepEqual(
     meta.breadcrumbs.map((b) => b.name),
@@ -103,6 +112,20 @@ test('company detail meta uses the company name, type, summary and canonical URL
   })
   assert.equal(phone.title, '검증코인 전화 상담 안내 | 법무법인 나란')
   assert.match(phone.description, /전화 상담으로 안내.*1551-7202/)
+})
+
+test('company URLs use the company name and still resolve old ID URLs', () => {
+  const spaced = { ...company, id: 'case1', name: ' 나란 코인/거래소 ' }
+  assert.equal(companySlug(spaced.name), '나란-코인-거래소')
+  assert.equal(companyPath(spaced), '/companies/' + encodeURIComponent('나란-코인-거래소'))
+  // 인코딩된 주소, 풀린 주소, 이전 ID 주소가 모두 같은 업체를 찾습니다.
+  assert.equal(findCompany([company, spaced], encodeURIComponent('나란-코인-거래소')), spaced)
+  assert.equal(findCompany([company, spaced], '나란-코인-거래소'), spaced)
+  assert.equal(findCompany([company, spaced], 'case1'), spaced)
+  assert.equal(findCompany([company, spaced], '%E0%A4%A'), null)
+  assert.equal(isCompanyPath(spaced, 'case1'), false)
+  const old = pageMeta('/companies/seo-company', '', data)
+  assert.equal(old.canonicalPath, '/companies/' + encodeURIComponent('검증코인'))
 })
 
 test('missing, admin, ad landing and internal search pages are kept out of the index', () => {
@@ -138,8 +161,14 @@ test('head tags include Open Graph, canonical, feeds, verification and escaped s
       data,
       origin,
     )
-    assert.match(html, /<link rel="canonical" href="https:\/\/naran.example\/companies\/seo-company"\/>/)
-    assert.match(html, /<meta property="og:url" content="https:\/\/naran.example\/companies\/seo-company"\/>/)
+    assert.match(
+      html,
+      /<link rel="canonical" href="https:\/\/naran.example\/companies\/%3C-script%3E%3Cscript%3Ealert\(1\)%3C-script%3E"\/>/,
+    )
+    assert.match(
+      html,
+      /<meta property="og:url" content="https:\/\/naran.example\/companies\/%3C-script%3E%3Cscript%3Ealert\(1\)%3C-script%3E"\/>/,
+    )
     assert.match(
       html,
       /<meta property="og:image" content="https:\/\/naran.example\/api\/media\/12345678-1234-1234-1234-123456789012.webp"\/>/,
@@ -165,7 +194,7 @@ test('head tags include Open Graph, canonical, feeds, verification and escaped s
   )
   const article = graph[2]
   assert.equal(article.headline, '검증코인 - 코인 리딩방 사기 정보')
-  assert.equal(article.mainEntityOfPage, 'https://naran.example/companies/seo-company')
+  assert.equal(article.mainEntityOfPage, 'https://naran.example/companies/' + encodeURIComponent('검증코인'))
   assert.equal(article.dateModified, '2026-10-20T09:30:00.000Z')
   assert.equal(graph[0].telephone, '1551-7202')
   const faq = structuredData(pageMeta('/faq', '', data), data, origin)['@graph'].find(
@@ -201,17 +230,17 @@ test('sitemap, RSS and llms.txt list detail pages with dates; phone-only compani
   const sitemap = await sitemapXml(origin)
   assert.match(
     sitemap,
-    /<url><loc>https:\/\/naran.example\/companies\/seo-company<\/loc><lastmod>2026-10-20T09:30:00.000Z<\/lastmod><image:image><image:loc>https:\/\/naran.example\/api\/media\/[^<]+<\/image:loc><\/image:image><\/url>/,
+    /<url><loc>https:\/\/naran.example\/companies\/%EA%B2%80%EC%A6%9D%EC%BD%94%EC%9D%B8<\/loc><lastmod>2026-10-20T09:30:00.000Z<\/lastmod><image:image><image:loc>https:\/\/naran.example\/api\/media\/[^<]+<\/image:loc><\/image:image><\/url>/,
   )
-  assert(sitemap.includes('/companies/seo-hidden'))
-  assert(sitemap.includes('/companies/seo-phone'))
+  assert(sitemap.includes('/companies/' + encodeURIComponent('검색차단업체')))
+  assert(sitemap.includes('/companies/' + encodeURIComponent('전화연결업체')))
   assert(sitemap.includes('<loc>https://naran.example/cases/case-01</loc><lastmod>'))
   const rss = await rssXml(origin, (doc) => doc.html + ']]>')
   assert.match(rss, /^<\?xml version="1.0" encoding="UTF-8"\?><rss version="2.0"/)
   assert.match(rss, /<atom:link href="https:\/\/naran.example\/rss.xml" rel="self"/)
   assert.match(
     rss,
-    /<item><title>검증코인 - 코인 리딩방 사기 정보<\/title><link>https:\/\/naran.example\/companies\/seo-company<\/link><guid isPermaLink="true">https:\/\/naran.example\/companies\/seo-company<\/guid><pubDate>Tue, 20 Oct 2026 09:30:00 GMT<\/pubDate><category>코인 리딩방 사기<\/category>/,
+    /<item><title>검증코인 - 코인 리딩방 사기 정보<\/title><link>https:\/\/naran.example\/companies\/%EA%B2%80%EC%A6%9D%EC%BD%94%EC%9D%B8<\/link><guid isPermaLink="true">https:\/\/naran.example\/companies\/%EA%B2%80%EC%A6%9D%EC%BD%94%EC%9D%B8<\/guid><pubDate>Tue, 20 Oct 2026 09:30:00 GMT<\/pubDate><category>코인 리딩방 사기<\/category>/,
   )
   assert.match(
     rss,
@@ -228,7 +257,7 @@ test('sitemap, RSS and llms.txt list detail pages with dates; phone-only compani
   assert.match(llms, /^# 법무법인 나란\n\n> /)
   assert.match(
     llms,
-    /- \[검증코인 - 코인 리딩방 사기 정보\]\(https:\/\/naran.example\/companies\/seo-company\): .+ \(업데이트 2026-10-20\)/,
+    /- \[검증코인 - 코인 리딩방 사기 정보\]\(https:\/\/naran.example\/companies\/%EA%B2%80%EC%A6%9D%EC%BD%94%EC%9D%B8\): .+ \(업데이트 2026-10-20\)/,
   )
   assert(!llms.includes('전화연결업체'))
   const res = response()

@@ -44,7 +44,26 @@ export const sectionNames = {
 }
 export const articlePath = (article) =>
   sectionPaths[article.kind] ? `/${sectionPaths[article.kind]}/${article.id}` : `/faq#${article.id}`
-export const companyPath = (company) => `/companies/${company.id}`
+// 업체 주소는 업체명을 그대로 씁니다. 주소 구분에 쓰이는 공백과 / \ ? # % 만 '-'로 바꿉니다.
+export const companySlug = (name = '') =>
+  String(name)
+    .trim()
+    .replace(/[\s/\\?#%]+/g, '-')
+export const companyPath = (company) => `/companies/${encodeURIComponent(companySlug(company.name))}`
+// 경로 조각은 환경에 따라 인코딩된 채로도, 풀린 채로도 들어옵니다.
+export function decodePathSegment(value = '') {
+  try {
+    return decodeURIComponent(value)
+  } catch {
+    return value
+  }
+}
+export const isCompanyPath = (company, segment) => companySlug(company.name) === decodePathSegment(segment)
+// 업체명 주소를 먼저 찾고, 없으면 이전 ID 주소(예: case1)로 찾습니다. 이전 주소는 업체명 주소로 옮깁니다.
+export function findCompany(companies, segment) {
+  const key = decodePathSegment(segment)
+  return companies.find((c) => companySlug(c.name) === key) || companies.find((c) => c.id === key) || null
+}
 
 const entities = { amp: '&', lt: '<', gt: '>', quot: '"', '#39': "'", nbsp: ' ' }
 // 검색 설명·피드 요약용 텍스트입니다. 문단 경계만 띄우고 굵게·색상 같은 글자 서식은 붙여 씁니다.
@@ -136,10 +155,7 @@ export function pageMeta(pathname, search, data) {
         ? notFound
         : { ...base, title: fullTitle('나란 상담 안내'), robots: ROBOTS_NOINDEX, canonicalPath: '' }
   if (parts[0] === 'companies' && parts.length === 2) {
-    const company =
-      data.selectedCompany?.id === parts[1]
-        ? data.selectedCompany
-        : data.companies?.find((c) => c.id === parts[1])
+    const company = findCompany([data.selectedCompany, ...(data.companies || [])].filter(Boolean), parts[1])
     if (!company)
       return data.selectedCompany === null ? notFound : { ...base, title: fullTitle(pageNames['/companies']) }
     return {
@@ -148,11 +164,16 @@ export function pageMeta(pathname, search, data) {
       description: companyDescription(company, settings),
       type: 'article',
       image: company.image || DEFAULT_IMAGE,
+      canonicalPath: companyPath(company),
       imageAlt: `${company.name} 관련 안내 자료`,
       publishedAt: company.createdAt || '',
       modifiedAt: company.updatedAt || company.createdAt || '',
       section: company.service || '',
-      breadcrumbs: [home, { name: '업체 정보', path: '/companies' }, { name: company.name, path: pathname }],
+      breadcrumbs: [
+        home,
+        { name: '업체 정보', path: '/companies' },
+        { name: company.name, path: companyPath(company) },
+      ],
       company,
     }
   }
