@@ -5,7 +5,7 @@
   "rewrites": [
     { "source": "/sitemap.xml", "destination": "/api/handler?__route=sitemap" },
     { "source": "/api/render", "destination": "/api/render" },
-    { "source": "/api/:path*", "destination": "/api/handler?__route=:path*" },
+    { "source": "/api/:__route*", "destination": "/api/handler?__route=:__route*" },
     {
       "source": "/((?!api/|assets/|images/|naran.svg|favicon.svg).*)",
       "destination": "/api/render?path=/$1"

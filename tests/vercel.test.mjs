@@ -8,7 +8,7 @@ import handler from '../api/handler.js'
 import { hashPassword } from '../server/auth.mjs'
 
 const config = JSON.parse(await readFile(new URL('../vercel.json', import.meta.url), 'utf8'))
-const rewrite = config.rewrites.find((rule) => rule.source === '/api/:path*')
+const rewrite = config.rewrites.find((rule) => rule.source.startsWith('/api/:'))
 const file = `.local/vercel-test-${randomUUID()}.json`
 let server, base
 
@@ -38,10 +38,14 @@ after(async () => {
 })
 
 // vercel.json의 rewrite 결과로 요청해 배포 환경의 경로 복원·쿼리 전달을 검증합니다.
+// Vercel은 source의 경로 변수를 같은 이름의 쿼리로 덮어씁니다. 변수 이름이 API 쿼리(예: path)와 겹치면 값이 바뀝니다.
 function rewritten(path) {
   const url = new URL(path, base)
-  const destination = new URL(rewrite.destination.replace(':path*', url.pathname.slice('/api/'.length)), base)
+  const route = url.pathname.slice('/api/'.length)
+  const param = rewrite.source.match(/:(\w+)\*/)[1]
+  const destination = new URL(rewrite.destination.replace(`:${param}*`, route), base)
   for (const [name, value] of url.searchParams) destination.searchParams.append(name, value)
+  destination.searchParams.set(param, route)
   return destination
 }
 
@@ -99,6 +103,9 @@ test('rewrites preserve content query strings and original request URLs', async 
   const response = await fetch(rewritten('/api/content?path=/'))
   assert.equal(response.status, 200)
   assert((await response.json()).articles.length > 0)
+  // 업체 목록 화면은 응답의 path가 /companies일 때만 목록을 그립니다.
+  const companies = await (await fetch(rewritten('/api/content?path=%2Fcompanies'))).json()
+  assert.equal(companies.path, '/companies')
   const direct = await fetch(base + '/api/admin/me')
   assert.equal(direct.status, 401)
   assert.match(direct.headers.get('content-type'), /application\/json/)
