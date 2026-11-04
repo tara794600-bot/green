@@ -129,6 +129,19 @@ export default function AdminReference({ kind }: { kind: Kind }) {
       setBusy(false)
     }
   }
+  // 업체 목록에는 본문이 없으므로 본문까지 받은 뒤 편집 창을 엽니다.
+  async function openEdit(row: Row) {
+    if (kind !== 'companies') return setEdit(row)
+    if (busy) return
+    setBusy(true)
+    try {
+      setEdit(await api<CompanyCase>(`/admin/companies/${row.id}`))
+    } catch (e) {
+      setError(errorMessage(e))
+    } finally {
+      setBusy(false)
+    }
+  }
   async function copy(value: string) {
     try {
       await navigator.clipboard.writeText(value)
@@ -244,7 +257,7 @@ export default function AdminReference({ kind }: { kind: Kind }) {
                   {'image' in row && (
                     <button
                       className="reference-thumbnail"
-                      onClick={() => setEdit(row)}
+                      onClick={() => void openEdit(row)}
                       aria-label={`${nameOf(row)} 수정`}
                     >
                       <img src={row.image} alt="" loading="lazy" />
@@ -317,7 +330,7 @@ export default function AdminReference({ kind }: { kind: Kind }) {
                           <button
                             className="icon-button"
                             aria-label={`${nameOf(row)} 수정`}
-                            onClick={() => setEdit(row)}
+                            onClick={() => void openEdit(row)}
                           >
                             <Pencil size={17} />
                           </button>

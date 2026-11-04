@@ -208,6 +208,12 @@ test('rich company documents round-trip through the API, preserve legacy updates
   })
   assert.equal(result.response.status, 200)
   assert.deepEqual((await request(`/companies/${companyId}`)).data.document, testDocument)
+  // 목록에는 본문을 싣지 않고, 관리자 편집 창은 단건 조회로 본문을 받습니다.
+  const listed = (await request('/content?path=/companies')).data.companies.find((c) => c.id === companyId)
+  assert.equal(listed.document, undefined)
+  const adminRow = (await request('/admin/companies')).data.items.find((c) => c.id === companyId)
+  assert.equal(adminRow.document, undefined)
+  assert.deepEqual((await request(`/admin/companies/${companyId}`)).data.document, testDocument)
   await request(`/admin/companies/${companyId}`, 'PUT', companyPayload)
   assert.deepEqual((await request(`/companies/${companyId}`)).data.document, testDocument)
   // 이전 블록 형식으로 저장된 본문도 그대로 받아 유지합니다.

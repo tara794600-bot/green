@@ -147,11 +147,13 @@ test('blog editor writes styled text, quotes, photos, cards and videos that rend
   await page.getByRole('button', { name: '저장하기', exact: true }).click()
   await expect(page.getByRole('dialog')).toHaveCount(0)
 
-  const company = (
+  // 목록에는 본문이 없으므로 단건 조회로 저장된 본문을 확인합니다.
+  const listed = (
     await (
       await page.request.get('/api/admin/companies?q=' + encodeURIComponent('본문 기능 검증 업체'))
     ).json()
   ).items[0]
+  const company = await (await page.request.get('/api/admin/companies/' + listed.id)).json()
   const html: string = company.document.html
   expect(company.document.version).toBe(2)
   expect(html).not.toContain('blob:')

@@ -174,21 +174,24 @@ function CompanyDetail({ id }: { id: string }) {
   const { selectedCompany, companies = [], settings, path } = useContent()
   const navigate = useNavigate()
   // 연결할 업체는 전체 목록이나 이 상세 경로의 데이터로만 계산합니다. 다른 상세의 연결 목록을 쓰지 않습니다.
-  const relatedReady =
-    path === '/companies' ||
-    (!!path?.startsWith('/companies/') && decodePathSegment(path.slice(11)) === decodePathSegment(id))
+  const routeReady =
+    !!path?.startsWith('/companies/') && decodePathSegment(path.slice(11)) === decodePathSegment(id)
+  const relatedReady = path === '/companies' || routeReady
   useRouteContent(`/companies/${id}`, relatedReady)
-  const [item, setItem] = useState<CompanyCase | null>(
+  const [fetched, setFetched] = useState<CompanyCase | null>(
     findCompany(selectedCompany ? [selectedCompany, ...companies] : companies, id),
   )
-  const [loading, setLoading] = useState(selectedCompany === undefined && !item),
+  // 이 상세 경로의 데이터(SSR·App 갱신)에 본문까지 있으면 그대로 쓰고, 목록에서 이동해 왔을 때만 따로 조회합니다.
+  const item = routeReady ? (selectedCompany ?? null) : fetched
+  const [loading, setLoading] = useState(!routeReady && !fetched),
     [error, setError] = useState('')
   useEffect(() => {
+    if (routeReady) return
     let active = true
     api<CompanyCase>(`/companies/${encodeURIComponent(decodePathSegment(id))}`)
       .then((value) => {
         if (active) {
-          setItem(value)
+          setFetched(value)
           document.title = fullTitle(companyTitle(value))
           if (!isCompanyPath(value, id)) navigate(companyPath(value), { replace: true })
         }
@@ -196,7 +199,7 @@ function CompanyDetail({ id }: { id: string }) {
       .catch((e) => {
         if (active) {
           setError(errorMessage(e))
-          if (e instanceof ApiError && e.status === 404) setItem(null)
+          if (e instanceof ApiError && e.status === 404) setFetched(null)
         }
       })
       .finally(() => {
@@ -205,7 +208,7 @@ function CompanyDetail({ id }: { id: string }) {
     return () => {
       active = false
     }
-  }, [id, navigate])
+  }, [id, navigate, routeReady])
   if (loading)
     return (
       <section className="section container">

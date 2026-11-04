@@ -60,10 +60,16 @@ export async function get(collection, id) {
   const doc = await firestore().collection(collection).doc(id).get()
   return doc.exists ? doc.data() : null
 }
-export async function list(collection) {
+// fields를 주면 해당 필드만 읽습니다. 큰 필드를 빼고 읽어 전송량을 줄일 때 씁니다.
+export async function list(collection, fields) {
+  const pick = (value) =>
+    fields ? Object.fromEntries(fields.filter((key) => key in value).map((key) => [key, value[key]])) : value
   if (useLocal())
-    return localOperation((d) => Object.entries(d[collection] || {}).map(([id, value]) => ({ ...value, id })))
-  return (await firestore().collection(collection).get()).docs.map((d) => ({ ...d.data(), id: d.id }))
+    return localOperation((d) =>
+      Object.entries(d[collection] || {}).map(([id, value]) => ({ ...pick(value), id })),
+    )
+  const ref = firestore().collection(collection)
+  return (await (fields ? ref.select(...fields) : ref).get()).docs.map((d) => ({ ...d.data(), id: d.id }))
 }
 export const storageAvailable = () => useLocal() || firebaseConfigured()
 export const dateString = (v) => (v?.toDate ? v.toDate().toISOString() : typeof v === 'string' ? v : '')
@@ -73,9 +79,22 @@ export const companyVisibility = (v) =>
 export function normalizeRecord(v) {
   return { ...v, createdAt: dateString(v.createdAt), updatedAt: dateString(v.updatedAt || v.createdAt) }
 }
-export async function allCompanies() {
+export const companyRecord = (v) => ({ ...normalizeRecord(v), visibility: companyVisibility(v) })
+// 업체 본문(document)은 업체마다 크고 합치면 1MB에 가까워집니다. 목록·검색·연결 업체에는 필요 없으므로
+// 기본으로 본문을 빼고 읽습니다. 본문은 상세 조회에서 한 업체만 읽고, 전체 본문은 피드처럼 꼭 필요할 때만 읽습니다.
+const companySummaryFields = [
+  'name',
+  'service',
+  'description',
+  'image',
+  'isPublic',
+  'isSearchBlocked',
+  'createdAt',
+  'updatedAt',
+]
+export async function allCompanies({ withDocument = false } = {}) {
   return storageAvailable()
-    ? (await list('companyCases')).map((v) => ({ ...normalizeRecord(v), visibility: companyVisibility(v) }))
+    ? (await list('companyCases', withDocument ? undefined : companySummaryFields)).map(companyRecord)
     : []
 }
 // fn은 새 문서 또는 삭제를 뜻하는 null을 반환합니다.
@@ -99,15 +118,11 @@ export async function mutate(collection, id, fn) {
   })
 }
 export const put = (collection, id, value) => mutate(collection, id, () => value)
-export async function publicData(includeDrafts = false) {
+// 같은 요청에서 업체 목록을 따로 쓰는 호출자는 이미 시작한 조회를 넘겨 같은 목록을 두 번 읽지 않게 합니다.
+export async function publicData(includeDrafts = false, companyList = allCompanies()) {
   const available = useLocal() || firebaseConfigured()
   const [saved, settings, rollingCases, companies] = available
-    ? await Promise.all([
-        list('siteContent'),
-        get('siteSettings', 'main'),
-        list('rollingCases'),
-        allCompanies(),
-      ])
+    ? await Promise.all([list('siteContent'), get('siteSettings', 'main'), list('rollingCases'), companyList])
     : [[], null, [], []]
   // 기본 콘텐츠에 관리자 저장값을 덮어씁니다. 삭제 표식도 병합해야 기본 글이 되살아나지 않습니다.
   const merged = new Map(seed.articles.map((a) => [a.id, a]))

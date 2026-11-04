@@ -3,6 +3,7 @@ import { z } from 'zod'
 import {
   allCompanies,
   audit,
+  companyRecord,
   get,
   isLocal,
   list,
@@ -91,6 +92,12 @@ export async function referenceAdmin(path, method, url, readBody, req) {
       total: all.length,
       filtered: filtered.length,
     }
+  }
+  // 목록에는 업체 본문이 없으므로 편집 창은 이 조회로 본문까지 받아 엽니다.
+  if (method === 'GET' && id) {
+    const value = await get(collection, id)
+    if (!value) throw new HttpError(404, '등록된 항목이 없습니다.')
+    return kind === 'companies' ? companyRecord({ ...value, id }) : normalizeRecord({ ...value, id })
   }
   if (method === 'POST' && !id && kind === 'powerlinks') {
     const { keyword } = parse(
@@ -196,9 +203,12 @@ export async function referenceAdmin(path, method, url, readBody, req) {
 }
 // 내부 검색에서 숨긴 업체도 직접 주소로 조회할 수 있으며, 노출 방식은 상세 화면이 처리합니다.
 // 주소는 업체명이고, 이전에 공유된 ID 주소도 같은 업체로 찾습니다.
-export async function companyDetail(segment) {
+// 본문 없는 목록에서 업체를 찾은 뒤 그 업체 문서만 본문까지 읽습니다. 이미 읽은 목록이 있으면 넘겨받습니다.
+export async function companyDetail(segment, companies) {
   if (!storageAvailable() || !segment || segment.length > 1000) return null
-  return findCompany(await allCompanies(), segment)
+  const found = findCompany(companies || (await allCompanies()), segment)
+  const value = found && (await get('companyCases', found.id))
+  return value ? companyRecord({ ...value, id: found.id }) : null
 }
 export async function landingData(token) {
   const keyword = await decryptKeyword(token)
@@ -212,21 +222,21 @@ export async function landingData(token) {
     .slice(0, 8)
   return { token, keyword, companies }
 }
-// 목록·카드에는 본문이 필요 없습니다. 본문은 상세 조회(selectedCompany)로만 보냅니다.
-const listItem = (company) => ({ ...company, document: undefined })
 // SSR과 브라우저 콘텐츠 API가 같은 기본 데이터와 경로별 상세 데이터를 사용하도록 모읍니다.
 // 업체 정보는 경로에 필요한 만큼만 보냅니다. 모든 화면에 전체 업체와 본문을 넣으면 상세페이지 HTML이 1MB에 가까워집니다.
 // 목록은 검색·페이지 이동에 쓸 전체 업체, 상세는 아래에 연결할 업체만 받고 다른 화면은 받지 않습니다.
 // 브라우저는 path로 현재 경로의 데이터인지 확인하고, 다른 화면에서 이동해 오면 다시 요청합니다.
 export async function requestPublicData(pathname = '/') {
-  const { companies, ...base } = await publicData()
+  // 목록·카드용 업체에는 본문이 없습니다. 본문은 상세 조회(selectedCompany)로만 보냅니다.
+  const everyCompany = allCompanies()
+  const [{ companies, ...base }, all] = await Promise.all([publicData(false, everyCompany), everyCompany])
   const route = pathname.replace(/(.)\/+$/, '$1')
   const data = { ...base, companies: [], path: route, powerlinkPrefix: powerlinkPrefix() }
-  if (route === '/companies') data.companies = companies.map(listItem)
+  if (route === '/companies') data.companies = companies
   if (/^\/companies\/[^/]+$/.test(route)) {
-    data.selectedCompany = await companyDetail(route.split('/')[2])
+    data.selectedCompany = await companyDetail(route.split('/')[2], all)
     if (data.selectedCompany && data.selectedCompany.visibility !== 'phone')
-      data.companies = relatedCompanies(companies, data.selectedCompany).map(listItem)
+      data.companies = relatedCompanies(companies, data.selectedCompany)
   }
   if (pathname.startsWith(data.powerlinkPrefix))
     data.landing = await landingData(pathname.slice(data.powerlinkPrefix.length))

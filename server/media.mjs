@@ -53,7 +53,7 @@ export async function uploadImage(data) {
 export async function deleteUnusedImage(url) {
   if (!url) return ''
   try {
-    const groups = await Promise.all(['siteContent', 'rollingCases', 'companyCases'].map(list))
+    const groups = await Promise.all(['siteContent', 'rollingCases', 'companyCases'].map((c) => list(c)))
     if (groups.flat().some((v) => !v.deleted && documentImageUrls(v).includes(url))) return ''
     const localName = url.match(/^\/api\/media\/([a-f0-9-]{36}\.webp)$/)?.[1]
     if (localName && isLocal() && !firebaseConfigured()) {

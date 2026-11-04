@@ -30,7 +30,9 @@ const newest = (items) =>
 
 // 상세 내용이 있는 업체만 피드·AI 안내에 넣습니다. 전화연결 업체는 전화 안내만 표시하므로 제외합니다.
 async function feedSources() {
-  const [{ articles, settings }, companies] = await Promise.all([publicData(), allCompanies()])
+  // 피드·AI 안내는 업체 본문을 쓰므로 본문까지 읽습니다.
+  const all = allCompanies({ withDocument: true })
+  const [{ articles, settings }, companies] = await Promise.all([publicData(false, all), all])
   const listed = companies
     .filter((c) => c.visibility !== 'phone')
     .sort((a, b) => (b.updatedAt || b.createdAt).localeCompare(a.updatedAt || a.createdAt))
